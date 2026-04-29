@@ -236,6 +236,18 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+async function requireAdmin(req: Request): Promise<Response | null> {
+  const auth = req.headers.get("Authorization") || "";
+  const token = auth.replace(/^Bearer\s+/i, "");
+  if (!token) return json({ error: "Unauthorized" }, 401);
+  const client = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const { data: userData, error } = await client.auth.getUser(token);
+  if (error || !userData?.user) return json({ error: "Unauthorized" }, 401);
+  const { data: roleRow } = await client.from("user_roles").select("id").eq("user_id", userData.user.id).eq("role", "admin").maybeSingle();
+  if (!roleRow) return json({ error: "Forbidden: admin only" }, 403);
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const url = new URL(req.url);
@@ -243,12 +255,21 @@ Deno.serve(async (req) => {
   try {
     if (path.startsWith("/resolve")) return await handleResolve(url);
     if (path.startsWith("/stream")) return await handleStream(req, url);
-    if (path.startsWith("/library")) return await handleLibrary(url);
-    if (path.startsWith("/test-play")) return await handleTestPlay(url);
-    if (path.startsWith("/test")) return await handleTest(url);
+    if (path.startsWith("/library")) {
+      const blocked = await requireAdmin(req); if (blocked) return blocked;
+      return await handleLibrary(url);
+    }
+    if (path.startsWith("/test-play")) {
+      const blocked = await requireAdmin(req); if (blocked) return blocked;
+      return await handleTestPlay(url);
+    }
+    if (path.startsWith("/test")) {
+      const blocked = await requireAdmin(req); if (blocked) return blocked;
+      return await handleTest(url);
+    }
     return json({ ok: true, message: "jellyfin-proxy", path });
   } catch (e) {
-    console.error(e);
-    return json({ error: String(e) }, 500);
+    console.error("jellyfin-proxy error:", e);
+    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
