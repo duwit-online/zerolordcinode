@@ -256,8 +256,25 @@ const AdminUsers = () => {
             <p className="text-xs text-muted-foreground">{u.email}</p>
             <p className="text-[10px] text-muted-foreground/60">Joined: {new Date(u.created_at).toLocaleDateString()}</p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap justify-end">
             <button onClick={() => { setEditingUser(u); setEditName(u.display_name); setEditEmail(u.email); }} className="p-2 rounded-full hover:bg-secondary/50 text-muted-foreground"><Edit2 size={14} /></button>
+            {u.has_subscription ? (
+              <button
+                onClick={() => handleRemovePremium(u.user_id)}
+                className="px-2 py-1.5 rounded-xl text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 inline-flex items-center gap-1"
+                title="Remove premium"
+              >
+                <Crown size={12} /> Remove
+              </button>
+            ) : (
+              <button
+                onClick={() => { setPremiumUser(u); setPremiumDays(30); setPremiumPlan("manual_premium"); }}
+                className="px-2 py-1.5 rounded-xl text-xs font-medium bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 inline-flex items-center gap-1"
+                title="Grant premium"
+              >
+                <Crown size={12} /> Premium
+              </button>
+            )}
             <button
               onClick={() => handleToggleAdmin(u.user_id, u.role || "user")}
               disabled={u.user_id === user?.id}
