@@ -115,6 +115,31 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (action === "set_premium") {
+      const { userId, makePremium, planType, days } = payload;
+      if (!userId) return json({ error: "Missing userId" }, 400);
+
+      if (makePremium) {
+        const planDays = Number.isFinite(Number(days)) && Number(days) > 0 ? Number(days) : 30;
+        const expires = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+        // Deactivate any existing active subs first to keep state clean
+        await adminClient.from("subscriptions").update({ status: "expired" }).eq("user_id", userId).eq("status", "active");
+        const { error } = await adminClient.from("subscriptions").insert({
+          user_id: userId,
+          plan_type: planType || "manual_premium",
+          status: "active",
+          starts_at: new Date().toISOString(),
+          expires_at: expires,
+        });
+        if (error) return json({ error: error.message }, 400);
+      } else {
+        const { error } = await adminClient.from("subscriptions").update({ status: "expired", expires_at: new Date().toISOString() }).eq("user_id", userId).eq("status", "active");
+        if (error) return json({ error: error.message }, 400);
+      }
+
+      return json({ ok: true });
+    }
+
     if (action === "delete_user") {
       const { userId } = payload;
       if (!userId) return json({ error: "Missing userId" }, 400);

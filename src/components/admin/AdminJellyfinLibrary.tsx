@@ -42,8 +42,14 @@ const AdminJellyfinLibrary = () => {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/jellyfin-proxy/library?${params}`, {
         headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
       });
-      const j = await res.json();
-      if (j.error) { toast({ title: "Load failed", description: j.error, variant: "destructive" }); setItems([]); }
+      const text = await res.text();
+      let j: any = null;
+      try { j = text ? JSON.parse(text) : {}; }
+      catch {
+        toast({ title: "Load failed", description: `Server returned non-JSON (${res.status}). ${text.slice(0, 120)}`, variant: "destructive" });
+        setItems([]); setLoading(false); return;
+      }
+      if (!res.ok || j.error) { toast({ title: "Load failed", description: j.error || `HTTP ${res.status}`, variant: "destructive" }); setItems([]); }
       else { setItems(j.items || []); setTotal(j.total || 0); }
     } catch (e: any) { toast({ title: "Load failed", description: e.message, variant: "destructive" }); }
     setLoading(false);
@@ -57,9 +63,12 @@ const AdminJellyfinLibrary = () => {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/jellyfin-proxy/test-play?serverId=${serverId}&itemId=${it.id}`, {
         headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
       });
-      const j = await res.json();
+      const text = await res.text();
+      let j: any = null;
+      try { j = text ? JSON.parse(text) : {}; }
+      catch { toast({ title: "Test play failed", description: `Non-JSON response (${res.status})`, variant: "destructive" }); return; }
       if (j.directUrl) window.open(j.directUrl, "_blank");
-      else toast({ title: "No playback URL", variant: "destructive" });
+      else toast({ title: "No playback URL", description: j.error, variant: "destructive" });
     } finally { setTestingPlay(null); }
   };
 

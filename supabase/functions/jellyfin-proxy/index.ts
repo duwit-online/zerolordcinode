@@ -239,14 +239,14 @@ function json(body: unknown, status = 200) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const url = new URL(req.url);
-  const path = url.pathname.replace(/^.*\/jellyfin-proxy/, "");
+  const path = url.pathname.replace(/^.*\/jellyfin-proxy/, "") || "/";
   try {
     if (path.startsWith("/resolve")) return await handleResolve(url);
     if (path.startsWith("/stream")) return await handleStream(req, url);
     if (path.startsWith("/library")) return await handleLibrary(url);
     if (path.startsWith("/test-play")) return await handleTestPlay(url);
     if (path.startsWith("/test")) return await handleTest(url);
-    return new Response("ok", { headers: corsHeaders });
+    return json({ ok: true, message: "jellyfin-proxy", path });
   } catch (e) {
     console.error(e);
     return json({ error: String(e) }, 500);

@@ -31,6 +31,10 @@ const AdminUsers = () => {
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
   const [createAdmin, setCreateAdmin] = useState(false);
+  const [premiumUser, setPremiumUser] = useState<UserWithRole | null>(null);
+  const [premiumDays, setPremiumDays] = useState(30);
+  const [premiumPlan, setPremiumPlan] = useState("manual_premium");
+  const [premiumSaving, setPremiumSaving] = useState(false);
 
   const { data: users = [], refetch } = useQuery({
     queryKey: ["admin-users-broad"],
@@ -155,6 +159,35 @@ const AdminUsers = () => {
     refetch();
   };
 
+  const handleSetPremium = async () => {
+    if (!premiumUser) return;
+    setPremiumSaving(true);
+    const { error } = await supabase.functions.invoke("admin-user-manager", {
+      body: {
+        action: "set_premium",
+        userId: premiumUser.user_id,
+        makePremium: true,
+        planType: premiumPlan,
+        days: premiumDays,
+      },
+    });
+    setPremiumSaving(false);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Premium granted", description: `${premiumDays} days` });
+    setPremiumUser(null);
+    refetch();
+  };
+
+  const handleRemovePremium = async (userId: string) => {
+    if (!confirm("Remove this user's active premium subscription?")) return;
+    const { error } = await supabase.functions.invoke("admin-user-manager", {
+      body: { action: "set_premium", userId, makePremium: false },
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Premium removed" });
+    refetch();
+  };
+
   const filtered = useMemo(() => users.filter(u => {
     const matchesSearch = u.display_name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
     const matchesRole =
@@ -223,8 +256,25 @@ const AdminUsers = () => {
             <p className="text-xs text-muted-foreground">{u.email}</p>
             <p className="text-[10px] text-muted-foreground/60">Joined: {new Date(u.created_at).toLocaleDateString()}</p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap justify-end">
             <button onClick={() => { setEditingUser(u); setEditName(u.display_name); setEditEmail(u.email); }} className="p-2 rounded-full hover:bg-secondary/50 text-muted-foreground"><Edit2 size={14} /></button>
+            {u.has_subscription ? (
+              <button
+                onClick={() => handleRemovePremium(u.user_id)}
+                className="px-2 py-1.5 rounded-xl text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 inline-flex items-center gap-1"
+                title="Remove premium"
+              >
+                <Crown size={12} /> Remove
+              </button>
+            ) : (
+              <button
+                onClick={() => { setPremiumUser(u); setPremiumDays(30); setPremiumPlan("manual_premium"); }}
+                className="px-2 py-1.5 rounded-xl text-xs font-medium bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 inline-flex items-center gap-1"
+                title="Grant premium"
+              >
+                <Crown size={12} /> Premium
+              </button>
+            )}
             <button
               onClick={() => handleToggleAdmin(u.user_id, u.role || "user")}
               disabled={u.user_id === user?.id}
@@ -279,6 +329,36 @@ const AdminUsers = () => {
               <div className="flex gap-2">
                 <button onClick={() => setEditingUser(null)} className="flex-1 py-2 rounded-xl bg-secondary text-sm">Cancel</button>
                 <button onClick={handleEditSave} className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {premiumUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setPremiumUser(null)}>
+          <div className="glass rounded-2xl p-6 border border-border/30 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold inline-flex items-center gap-2"><Crown size={16} className="text-amber-400" /> Grant Premium</h3>
+              <button onClick={() => setPremiumUser(null)}><X size={16} /></button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">User: <span className="font-medium text-foreground">{premiumUser.display_name}</span> ({premiumUser.email})</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Plan name</label>
+                <input value={premiumPlan} onChange={(e) => setPremiumPlan(e.target.value)} placeholder="manual_premium" className="w-full bg-secondary/50 border border-border/30 rounded-xl px-4 py-2.5 text-sm outline-none" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Duration (days)</label>
+                <input type="number" min={1} value={premiumDays} onChange={(e) => setPremiumDays(Number(e.target.value) || 30)} className="w-full bg-secondary/50 border border-border/30 rounded-xl px-4 py-2.5 text-sm outline-none" />
+                <div className="flex gap-1.5 mt-2 flex-wrap">
+                  {[7, 30, 90, 180, 365, 3650].map(d => (
+                    <button key={d} onClick={() => setPremiumDays(d)} className={`text-[11px] px-2 py-1 rounded-lg ${premiumDays === d ? "bg-primary text-primary-foreground" : "bg-secondary/60"}`}>{d === 3650 ? "10y" : `${d}d`}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setPremiumUser(null)} className="flex-1 py-2 rounded-xl bg-secondary text-sm">Cancel</button>
+                <button onClick={handleSetPremium} disabled={premiumSaving || premiumDays < 1} className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">{premiumSaving ? "Saving..." : "Grant"}</button>
               </div>
             </div>
           </div>
