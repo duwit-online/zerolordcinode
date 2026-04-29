@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, Trash2, Edit2, Search, UserPlus, X, Crown, Users, Circle, CrownIcon } from "lucide-react";
+import { Shield, Trash2, Edit2, Search, UserPlus, X, Crown, Users, Circle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface UserWithRole {
