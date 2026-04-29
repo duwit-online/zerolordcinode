@@ -64,11 +64,15 @@ const AdminServers = () => {
   const testConnection = async (r: JfServer) => {
     setTesting(r.id);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || ANON;
       const res = await fetch(`${SUPABASE_URL}/functions/v1/jellyfin-proxy/test?serverId=${r.id}`, {
-        headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+        headers: { apikey: ANON, Authorization: `Bearer ${token}` },
       });
-      const j = await res.json();
-      setTestResult((p) => ({ ...p, [r.id]: { ok: !!j.ok, msg: j.ok ? `${j.serverName || "OK"} • v${j.version || ""}` : (j.error || "Failed") } }));
+      const text = await res.text();
+      let j: any = {};
+      try { j = text ? JSON.parse(text) : {}; } catch { j = { ok: false, error: `Non-JSON (${res.status})` }; }
+      setTestResult((p) => ({ ...p, [r.id]: { ok: !!j.ok, msg: j.ok ? `${j.serverName || "OK"} • v${j.version || ""}` : (j.error || `Failed (${res.status})`) } }));
     } catch (e: any) {
       setTestResult((p) => ({ ...p, [r.id]: { ok: false, msg: e.message } }));
     }

@@ -33,6 +33,12 @@ const AdminJellyfinLibrary = () => {
     })();
   }, []);
 
+  const authHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || ANON;
+    return { apikey: ANON, Authorization: `Bearer ${token}` } as Record<string, string>;
+  };
+
   const load = async () => {
     if (!serverId) return;
     setLoading(true);
@@ -40,7 +46,7 @@ const AdminJellyfinLibrary = () => {
       const params = new URLSearchParams({ serverId, type, page: String(page), pageSize: String(pageSize) });
       if (search) params.set("search", search);
       const res = await fetch(`${SUPABASE_URL}/functions/v1/jellyfin-proxy/library?${params}`, {
-        headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+        headers: await authHeaders(),
       });
       const text = await res.text();
       let j: any = null;
@@ -61,7 +67,7 @@ const AdminJellyfinLibrary = () => {
     setTestingPlay(it.id);
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/jellyfin-proxy/test-play?serverId=${serverId}&itemId=${it.id}`, {
-        headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+        headers: await authHeaders(),
       });
       const text = await res.text();
       let j: any = null;
