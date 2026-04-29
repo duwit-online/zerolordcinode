@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_submissions ADD COLUMN IF NOT EXISTS tracking_answers jsonb DEFAULT '{}'::jsonb;

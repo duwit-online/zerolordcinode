@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX IF NOT EXISTS user_progress_unique_movie ON public.user_progress (user_id, media_type, tmdb_id) WHERE season IS NULL AND episode IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS user_progress_unique_tv ON public.user_progress (user_id, media_type, tmdb_id, season, episode) WHERE season IS NOT NULL AND episode IS NOT NULL;
