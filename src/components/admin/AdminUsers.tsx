@@ -159,6 +159,35 @@ const AdminUsers = () => {
     refetch();
   };
 
+  const handleSetPremium = async () => {
+    if (!premiumUser) return;
+    setPremiumSaving(true);
+    const { error } = await supabase.functions.invoke("admin-user-manager", {
+      body: {
+        action: "set_premium",
+        userId: premiumUser.user_id,
+        makePremium: true,
+        planType: premiumPlan,
+        days: premiumDays,
+      },
+    });
+    setPremiumSaving(false);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Premium granted", description: `${premiumDays} days` });
+    setPremiumUser(null);
+    refetch();
+  };
+
+  const handleRemovePremium = async (userId: string) => {
+    if (!confirm("Remove this user's active premium subscription?")) return;
+    const { error } = await supabase.functions.invoke("admin-user-manager", {
+      body: { action: "set_premium", userId, makePremium: false },
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Premium removed" });
+    refetch();
+  };
+
   const filtered = useMemo(() => users.filter(u => {
     const matchesSearch = u.display_name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
     const matchesRole =
