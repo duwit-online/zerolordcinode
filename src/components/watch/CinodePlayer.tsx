@@ -139,15 +139,13 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
         </div>
       )}
 
-      {/* Top-right badge + controls (source picker is admin-only) */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-        {isAdmin && (
+      {/* Top-right badge + settings — ADMIN ONLY. Regular users never see source info or selector. */}
+      {isAdmin && (
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
           <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">{current.label}</span>
-        )}
-        {(isAdmin || current.kind !== "iframe") && (
           <button onClick={() => setShowSourceMenu((v) => !v)} className="rounded-full bg-black/60 p-1.5 text-white/90 backdrop-blur hover:bg-black/80"><Settings2 size={14} /></button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Skip buttons (non-iframe) */}
       {current.kind !== "iframe" && (
@@ -161,7 +159,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
         </div>
       )}
 
-      {showSourceMenu && (
+      {showSourceMenu && isAdmin && (
         <div className="absolute top-12 right-3 z-20 w-60 rounded-xl bg-black/90 backdrop-blur border border-white/10 p-3 text-white text-xs space-y-3">
           {isAdmin && (
             <div>
