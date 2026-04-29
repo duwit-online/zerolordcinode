@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 import { Loader2, Settings2, RefreshCw, SkipBack, SkipForward } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type PlayerSource = {
   kind: "hls" | "mp4" | "iframe";
@@ -19,6 +20,7 @@ interface CinodePlayerProps {
 const STALL_TIMEOUT_MS = 18000;
 
 const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: CinodePlayerProps) => {
+  const { isAdmin } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const stallTimer = useRef<number | null>(null);
@@ -115,7 +117,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
   return (
     <div className="relative w-full aspect-video bg-black overflow-hidden rounded-2xl group">
       {current.kind === "iframe" ? (
-        <iframe src={current.url} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation" />
+        <iframe src={current.url} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="no-referrer" />
       ) : (
         <video ref={videoRef} poster={poster} controls playsInline crossOrigin="anonymous" className="w-full h-full bg-black" />
       )}
@@ -137,10 +139,14 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
         </div>
       )}
 
-      {/* Top-right badge + controls */}
+      {/* Top-right badge + controls (source picker is admin-only) */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-        <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">{current.label}</span>
-        <button onClick={() => setShowSourceMenu((v) => !v)} className="rounded-full bg-black/60 p-1.5 text-white/90 backdrop-blur hover:bg-black/80"><Settings2 size={14} /></button>
+        {isAdmin && (
+          <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">{current.label}</span>
+        )}
+        {(isAdmin || current.kind !== "iframe") && (
+          <button onClick={() => setShowSourceMenu((v) => !v)} className="rounded-full bg-black/60 p-1.5 text-white/90 backdrop-blur hover:bg-black/80"><Settings2 size={14} /></button>
+        )}
       </div>
 
       {/* Skip buttons (non-iframe) */}
@@ -157,16 +163,18 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
 
       {showSourceMenu && (
         <div className="absolute top-12 right-3 z-20 w-60 rounded-xl bg-black/90 backdrop-blur border border-white/10 p-3 text-white text-xs space-y-3">
-          <div>
-            <div className="font-bold mb-1.5 text-white/80 uppercase text-[10px]">Source</div>
-            <div className="max-h-40 overflow-auto space-y-1">
-              {effectiveSources.map((s, i) => (
-                <button key={s.url} onClick={() => { setIndex(i); setShowSourceMenu(false); }} className={`w-full text-left rounded-md px-2 py-1.5 ${i === index ? "bg-primary text-primary-foreground" : "hover:bg-white/10"}`}>
-                  {s.label}
-                </button>
-              ))}
+          {isAdmin && (
+            <div>
+              <div className="font-bold mb-1.5 text-white/80 uppercase text-[10px]">Source (admin)</div>
+              <div className="max-h-40 overflow-auto space-y-1">
+                {effectiveSources.map((s, i) => (
+                  <button key={s.url} onClick={() => { setIndex(i); setShowSourceMenu(false); }} className={`w-full text-left rounded-md px-2 py-1.5 ${i === index ? "bg-primary text-primary-foreground" : "hover:bg-white/10"}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           {current.kind !== "iframe" && (
             <div>
               <div className="font-bold mb-1.5 text-white/80 uppercase text-[10px]">Speed</div>
