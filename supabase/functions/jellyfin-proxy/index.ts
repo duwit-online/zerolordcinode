@@ -135,7 +135,8 @@ async function handleResolve(url: URL): Promise<Response> {
       return json({ directUrl, hlsUrl, title: target.Name, itemId: target.Id, serverName: srv.name });
     } catch (e) { console.error("server failed", e); }
   }
-  return json({ error: "not_found" }, 404);
+  // Return 200 with found=false. "No Jellyfin match" is expected/normal — clients fall through to the next admin source.
+  return json({ found: false });
 }
 
 async function handleStream(req: Request, url: URL): Promise<Response> {
