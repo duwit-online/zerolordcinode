@@ -17,7 +17,6 @@ function embedUrl(key: string, a: ResolveArgs): PlayerSource | null {
   const isTV = a.type === "tv";
   const s = a.season || 1, e = a.episode || 1;
   switch (key) {
-    case "vidsrc_xyz": return { kind: "iframe", label: "VidSrc XYZ", url: isTV ? `https://vidsrc.xyz/embed/tv/${a.tmdbId}/${s}/${e}` : `https://vidsrc.xyz/embed/movie/${a.tmdbId}` };
     case "2embed": return { kind: "iframe", label: "2Embed", url: isTV ? `https://www.2embed.cc/embedtv/${a.tmdbId}&s=${s}&e=${e}` : `https://www.2embed.cc/embed/${a.tmdbId}` };
     case "superembed": return { kind: "iframe", label: "SuperEmbed", url: isTV ? `https://multiembed.mov/?video_id=${a.tmdbId}&tmdb=1&s=${s}&e=${e}` : `https://multiembed.mov/?video_id=${a.tmdbId}&tmdb=1` };
     case "vidlink": return { kind: "iframe", label: "VidLink", url: isTV ? `https://vidlink.pro/tv/${a.tmdbId}/${s}/${e}` : `https://vidlink.pro/movie/${a.tmdbId}` };
