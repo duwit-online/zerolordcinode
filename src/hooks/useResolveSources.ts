@@ -48,11 +48,11 @@ export function useResolveSources(args: ResolveArgs) {
           headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
         });
         if (res.ok) {
-          const j = await res.json();
-          if (j.directUrl) jfDirect = { kind: "mp4", label: `Jellyfin Direct${j.serverName ? ` · ${j.serverName}` : ""}`, url: j.directUrl };
-          if (j.hlsUrl) jfHls = { kind: "hls", label: `Jellyfin HLS${j.serverName ? ` · ${j.serverName}` : ""}`, url: j.hlsUrl };
+          const j = await res.json().catch(() => ({}));
+          if (j?.directUrl) jfDirect = { kind: "mp4", label: `Jellyfin Direct${j.serverName ? ` · ${j.serverName}` : ""}`, url: j.directUrl };
+          if (j?.hlsUrl) jfHls = { kind: "hls", label: `Jellyfin HLS${j.serverName ? ` · ${j.serverName}` : ""}`, url: j.hlsUrl };
         }
-      } catch (e) { console.warn("jellyfin resolve failed", e); }
+      } catch (e) { console.warn("jellyfin resolve skipped", e); }
 
       // Resolve override once
       let override: PlayerSource | null = null;
