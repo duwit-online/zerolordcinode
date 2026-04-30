@@ -25,7 +25,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const playbackRate = 1;
 
   const effectiveSources: PlayerSource[] = forcedSrc
     ? [{ kind: forcedSrc.endsWith(".m3u8") ? "hls" : "mp4", label: "Offline", url: forcedSrc }]
