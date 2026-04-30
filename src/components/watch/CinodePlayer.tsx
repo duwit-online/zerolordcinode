@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { Loader2, Settings2, RefreshCw, SkipBack, SkipForward } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { Loader2, RefreshCw, SkipBack, SkipForward } from "lucide-react";
 
 export type PlayerSource = {
   kind: "hls" | "mp4" | "iframe";
@@ -20,17 +19,13 @@ interface CinodePlayerProps {
 const STALL_TIMEOUT_MS = 18000;
 
 const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: CinodePlayerProps) => {
-  const { isAdmin } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const stallTimer = useRef<number | null>(null);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showSourceMenu, setShowSourceMenu] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [qualities, setQualities] = useState<{ index: number; height: number }[]>([]);
-  const [currentLevel, setCurrentLevel] = useState(-1);
 
   const effectiveSources: PlayerSource[] = forcedSrc
     ? [{ kind: forcedSrc.endsWith(".m3u8") ? "hls" : "mp4", label: "Offline", url: forcedSrc }]
@@ -57,7 +52,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
     });
   }, [effectiveSources.length]);
 
-  useEffect(() => { setIndex(0); setErrorMsg(null); setLoading(true); setQualities([]); setCurrentLevel(-1); }, [effectiveSources.map((s) => s.url).join("|")]);
+  useEffect(() => { setIndex(0); setErrorMsg(null); setLoading(true); }, [effectiveSources.map((s) => s.url).join("|")]);
 
   useEffect(() => {
     if (!current || current.kind === "iframe") return;
@@ -85,10 +80,6 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
       hlsRef.current = hls;
       hls.loadSource(current.url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setQualities(hls.levels.map((l, i) => ({ index: i, height: l.height || 0 })));
-      });
-      hls.on(Hls.Events.LEVEL_SWITCHED, (_e, d) => setCurrentLevel(d.level));
       hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) tryNext(`hls ${data.type}/${data.details}`); });
     } else {
       video.src = current.url;
@@ -109,9 +100,6 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
   }, [current?.url, current?.kind, armStall, tryNext, onEnded, onTimeUpdate, playbackRate]);
 
   const skip = (delta: number) => { const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime + delta); };
-  const setRate = (r: number) => { setPlaybackRate(r); const v = videoRef.current; if (v) v.playbackRate = r; };
-  const enterPip = async () => { const v = videoRef.current as any; if (v?.requestPictureInPicture) try { await v.requestPictureInPicture(); } catch {} };
-
   if (!current) return <div className="aspect-video w-full bg-black flex items-center justify-center text-muted-foreground">No playable source.</div>;
 
   return (
@@ -125,7 +113,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
       {loading && current.kind !== "iframe" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 pointer-events-none">
           <Loader2 className="animate-spin text-primary" size={36} />
-          <p className="mt-3 text-xs text-white/80">Loading {current.label}…</p>
+          <p className="mt-3 text-xs text-white/80">Loading video…</p>
         </div>
       )}
 
@@ -139,14 +127,6 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
         </div>
       )}
 
-      {/* Top-right badge + settings — ADMIN ONLY. Regular users never see source info or selector. */}
-      {isAdmin && (
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-          <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">{current.label}</span>
-          <button onClick={() => setShowSourceMenu((v) => !v)} className="rounded-full bg-black/60 p-1.5 text-white/90 backdrop-blur hover:bg-black/80"><Settings2 size={14} /></button>
-        </div>
-      )}
-
       {/* Skip buttons (non-iframe) */}
       {current.kind !== "iframe" && (
         <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
@@ -156,47 +136,6 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
       {current.kind !== "iframe" && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
           <button onClick={() => skip(10)} className="rounded-full bg-black/60 p-2 text-white"><SkipForward size={16} /></button>
-        </div>
-      )}
-
-      {showSourceMenu && isAdmin && (
-        <div className="absolute top-12 right-3 z-20 w-60 rounded-xl bg-black/90 backdrop-blur border border-white/10 p-3 text-white text-xs space-y-3">
-          {isAdmin && (
-            <div>
-              <div className="font-bold mb-1.5 text-white/80 uppercase text-[10px]">Source (admin)</div>
-              <div className="max-h-40 overflow-auto space-y-1">
-                {effectiveSources.map((s, i) => (
-                  <button key={s.url} onClick={() => { setIndex(i); setShowSourceMenu(false); }} className={`w-full text-left rounded-md px-2 py-1.5 ${i === index ? "bg-primary text-primary-foreground" : "hover:bg-white/10"}`}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {current.kind !== "iframe" && (
-            <div>
-              <div className="font-bold mb-1.5 text-white/80 uppercase text-[10px]">Speed</div>
-              <div className="flex flex-wrap gap-1">
-                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => (
-                  <button key={r} onClick={() => setRate(r)} className={`rounded-md px-2 py-1 ${playbackRate === r ? "bg-primary text-primary-foreground" : "bg-white/10"}`}>{r}x</button>
-                ))}
-              </div>
-            </div>
-          )}
-          {qualities.length > 1 && (
-            <div>
-              <div className="font-bold mb-1.5 text-white/80 uppercase text-[10px]">Quality</div>
-              <div className="flex flex-wrap gap-1">
-                <button onClick={() => { if (hlsRef.current) hlsRef.current.currentLevel = -1; }} className={`rounded-md px-2 py-1 ${currentLevel === -1 ? "bg-primary text-primary-foreground" : "bg-white/10"}`}>Auto</button>
-                {qualities.map((q) => (
-                  <button key={q.index} onClick={() => { if (hlsRef.current) hlsRef.current.currentLevel = q.index; }} className={`rounded-md px-2 py-1 ${currentLevel === q.index ? "bg-primary text-primary-foreground" : "bg-white/10"}`}>{q.height}p</button>
-                ))}
-              </div>
-            </div>
-          )}
-          {current.kind !== "iframe" && (
-            <button onClick={enterPip} className="w-full rounded-md bg-white/10 hover:bg-white/20 py-1.5">Picture-in-Picture</button>
-          )}
         </div>
       )}
     </div>
