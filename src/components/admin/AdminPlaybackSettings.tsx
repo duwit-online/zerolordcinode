@@ -3,19 +3,7 @@ import { motion } from "framer-motion";
 import { useAppSettings, useUpdateSetting } from "@/hooks/useAppSettings";
 import { ListOrdered, ChevronUp, ChevronDown, Save, Loader2, Smartphone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-const SOURCE_KEYS: Record<string, string> = {
-  jellyfin_direct: "Jellyfin Direct",
-  jellyfin_hls: "Jellyfin HLS Proxy",
-  override: "Admin Override",
-  vidsrc: "VidSrc",
-  vidsrc_xyz: "VidSrc XYZ",
-  "2embed": "2Embed",
-  superembed: "SuperEmbed",
-  vidlink: "VidLink",
-  smashy: "Smashy",
-};
-const ALL_KEYS = Object.keys(SOURCE_KEYS);
+import { DEFAULT_PLAYBACK_ORDER, PLAYBACK_SOURCE_LABELS, PLAYBACK_SOURCE_KEYS, normalizePlaybackOrder } from "@/lib/playbackSources";
 
 const AdminPlaybackSettings = () => {
   const { data: settings, isLoading } = useAppSettings();
@@ -25,7 +13,7 @@ const AdminPlaybackSettings = () => {
   const [ios, setIos] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
-  const currentOrder: string[] = order ?? settings?.playback_order?.order ?? ALL_KEYS;
+  const currentOrder = normalizePlaybackOrder(order ?? settings?.playback_order?.order ?? DEFAULT_PLAYBACK_ORDER);
   const links = settings?.mobile_app_links || {};
   const androidVal = android ?? links.android ?? "";
   const iosVal = ios ?? links.ios ?? "";
@@ -59,7 +47,7 @@ const AdminPlaybackSettings = () => {
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
-  const inactive = ALL_KEYS.filter((k) => !currentOrder.includes(k));
+  const inactive = PLAYBACK_SOURCE_KEYS.filter((k) => !currentOrder.includes(k));
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -71,7 +59,7 @@ const AdminPlaybackSettings = () => {
           {currentOrder.map((k, i) => (
             <div key={k} className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm">
               <span className="text-xs font-mono w-5 text-muted-foreground">{i + 1}</span>
-              <span className="flex-1 font-medium">{SOURCE_KEYS[k] || k}</span>
+              <span className="flex-1 font-medium">{PLAYBACK_SOURCE_LABELS[k] || k}</span>
               <button onClick={() => move(i, -1)} disabled={i === 0} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronUp size={14} /></button>
               <button onClick={() => move(i, 1)} disabled={i === currentOrder.length - 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronDown size={14} /></button>
               <button onClick={() => toggleKey(k)} className="text-xs text-destructive">Remove</button>
@@ -84,7 +72,7 @@ const AdminPlaybackSettings = () => {
             <p className="text-xs text-muted-foreground mb-2">Disabled sources:</p>
             <div className="flex flex-wrap gap-2">
               {inactive.map((k) => (
-                <button key={k} onClick={() => toggleKey(k)} className="rounded-full bg-secondary px-3 py-1 text-xs hover:bg-secondary/80">+ {SOURCE_KEYS[k] || k}</button>
+                <button key={k} onClick={() => toggleKey(k)} className="rounded-full bg-secondary px-3 py-1 text-xs hover:bg-secondary/80">+ {PLAYBACK_SOURCE_LABELS[k] || k}</button>
               ))}
             </div>
           </div>
