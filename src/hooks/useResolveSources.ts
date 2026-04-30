@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { PlayerSource } from "@/components/watch/CinodePlayer";
+import { DEFAULT_PLAYBACK_ORDER, normalizePlaybackOrder } from "@/lib/playbackSources";
 
 interface ResolveArgs {
   tmdbId: number;
@@ -12,13 +13,10 @@ interface ResolveArgs {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
-const DEFAULT_ORDER = ["jellyfin_direct", "jellyfin_hls", "override", "vidsrc", "vidsrc_xyz", "2embed", "superembed", "vidlink", "smashy"];
-
 function embedUrl(key: string, a: ResolveArgs): PlayerSource | null {
   const isTV = a.type === "tv";
   const s = a.season || 1, e = a.episode || 1;
   switch (key) {
-    case "vidsrc": return { kind: "iframe", label: "VidSrc", url: isTV ? `https://vidsrc.to/embed/tv/${a.tmdbId}/${s}/${e}` : `https://vidsrc.to/embed/movie/${a.tmdbId}` };
     case "vidsrc_xyz": return { kind: "iframe", label: "VidSrc XYZ", url: isTV ? `https://vidsrc.xyz/embed/tv/${a.tmdbId}/${s}/${e}` : `https://vidsrc.xyz/embed/movie/${a.tmdbId}` };
     case "2embed": return { kind: "iframe", label: "2Embed", url: isTV ? `https://www.2embed.cc/embedtv/${a.tmdbId}&s=${s}&e=${e}` : `https://www.2embed.cc/embed/${a.tmdbId}` };
     case "superembed": return { kind: "iframe", label: "SuperEmbed", url: isTV ? `https://multiembed.mov/?video_id=${a.tmdbId}&tmdb=1&s=${s}&e=${e}` : `https://multiembed.mov/?video_id=${a.tmdbId}&tmdb=1` };
@@ -39,7 +37,7 @@ export function useResolveSources(args: ResolveArgs) {
 
       // Get admin-configured order
       const { data: orderRow } = await supabase.from("app_settings").select("value").eq("key", "playback_order").maybeSingle();
-      const order: string[] = (orderRow?.value as any)?.order || DEFAULT_ORDER;
+      const order = normalizePlaybackOrder((orderRow?.value as any)?.order ?? DEFAULT_PLAYBACK_ORDER);
 
       // Resolve jellyfin once
       let jfDirect: PlayerSource | null = null;
