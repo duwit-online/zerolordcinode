@@ -20,5 +20,5 @@ export function normalizePlaybackOrder(value: unknown): string[] {
     (key): key is string => typeof key === "string" && PLAYBACK_SOURCE_KEYS.includes(key),
   );
 
-  return filtered.length > 0 ? filtered : DEFAULT_PLAYBACK_ORDER;
+  return filtered;
 }
