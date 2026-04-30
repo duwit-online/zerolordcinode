@@ -2,7 +2,6 @@ export const PLAYBACK_SOURCE_LABELS: Record<string, string> = {
   jellyfin_direct: "Jellyfin Direct",
   jellyfin_hls: "Jellyfin HLS Proxy",
   override: "Admin Override",
-  vidsrc_xyz: "VidSrc XYZ",
   "2embed": "2Embed",
   superembed: "SuperEmbed",
   vidlink: "VidLink",
