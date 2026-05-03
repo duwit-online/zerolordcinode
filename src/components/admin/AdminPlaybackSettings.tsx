@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAppSettings, useUpdateSetting } from "@/hooks/useAppSettings";
-import { ListOrdered, ChevronUp, ChevronDown, Save, Loader2, Smartphone } from "lucide-react";
+import { ListOrdered, ChevronUp, ChevronDown, Save, Loader2, Smartphone, CheckCircle2, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DEFAULT_PLAYBACK_ORDER, PLAYBACK_SOURCE_LABELS, PLAYBACK_SOURCE_KEYS, normalizePlaybackOrder } from "@/lib/playbackSources";
 
@@ -12,8 +12,12 @@ const AdminPlaybackSettings = () => {
   const [android, setAndroid] = useState<string | null>(null);
   const [ios, setIos] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [savedOrder, setSavedOrder] = useState<string[] | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
 
-  const currentOrder = normalizePlaybackOrder(order ?? settings?.playback_order?.order ?? DEFAULT_PLAYBACK_ORDER);
+  const storedOrder = normalizePlaybackOrder(settings?.playback_order?.order ?? DEFAULT_PLAYBACK_ORDER);
+  const currentOrder = normalizePlaybackOrder(order ?? storedOrder);
+  const isDirty = order !== null && JSON.stringify(order) !== JSON.stringify(storedOrder);
   const links = settings?.mobile_app_links || {};
   const androidVal = android ?? links.android ?? "";
   const iosVal = ios ?? links.ios ?? "";
@@ -33,8 +37,14 @@ const AdminPlaybackSettings = () => {
 
   const saveOrder = async () => {
     setSaving("order");
-    try { await updateSetting.mutateAsync({ key: "playback_order", value: { order: currentOrder } }); toast({ title: "Playback order saved" }); setOrder(null); }
-    catch (e: any) { toast({ title: "Save failed", description: e.message, variant: "destructive" }); }
+    try {
+      const result = await updateSetting.mutateAsync({ key: "playback_order", value: { order: currentOrder } });
+      const persisted = normalizePlaybackOrder((result?.value as any)?.order ?? currentOrder);
+      setSavedOrder(persisted);
+      setSavedAt(new Date());
+      toast({ title: "✓ Playback order saved", description: `${persisted.length} source(s) active` });
+      setOrder(null);
+    } catch (e: any) { toast({ title: "Save failed", description: e.message, variant: "destructive" }); }
     setSaving(null);
   };
 
@@ -53,7 +63,7 @@ const AdminPlaybackSettings = () => {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <div className="flex items-center gap-2"><ListOrdered size={18} className="text-primary" /><h3 className="font-bold">Playback Source Order</h3></div>
-        <p className="text-xs text-muted-foreground">Drag-free reorder using arrows. Top = tried first. Toggle sources off to skip them entirely.</p>
+        <p className="text-xs text-muted-foreground">Reorder using arrows. Top = tried first. The player follows this exact sequence and never reorders.</p>
 
         <div className="space-y-1.5">
           {currentOrder.map((k, i) => (
@@ -78,9 +88,48 @@ const AdminPlaybackSettings = () => {
           </div>
         )}
 
-        <button onClick={saveOrder} disabled={!order || saving === "order"} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
-          {saving === "order" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save order
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={saveOrder} disabled={!isDirty || saving === "order"} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {saving === "order" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save order
+          </button>
+          {isDirty && <span className="text-xs text-amber-500">Unsaved changes</span>}
+          {!isDirty && savedAt && (
+            <span className="text-xs text-emerald-500 inline-flex items-center gap-1">
+              <CheckCircle2 size={12} /> Saved at {savedAt.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+
+        {/* Validation: show stored order from DB */}
+        <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle2 size={14} className="text-emerald-500" />
+            <p className="text-xs font-semibold text-emerald-500">Currently saved order (from database)</p>
+          </div>
+          <ol className="text-xs space-y-1 font-mono">
+            {storedOrder.length === 0 && <li className="text-destructive">⚠ No sources saved — playback will fail</li>}
+            {storedOrder.map((k, i) => (
+              <li key={k}><span className="text-muted-foreground">{i + 1}.</span> {PLAYBACK_SOURCE_LABELS[k] || k} <span className="text-muted-foreground">({k})</span></li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Admin-only preview */}
+        <div className="mt-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Eye size={14} className="text-primary" />
+            <p className="text-xs font-semibold text-primary">User playback sequence preview</p>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">Players will try sources in this exact order. If one fails or is unavailable, the next is tried — never reordered.</p>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {storedOrder.map((k, i) => (
+              <span key={k} className="inline-flex items-center gap-1">
+                <span className="rounded-md bg-background border border-border px-2 py-1 font-medium">{i + 1}. {PLAYBACK_SOURCE_LABELS[k] || k}</span>
+                {i < storedOrder.length - 1 && <span className="text-muted-foreground">→</span>}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
