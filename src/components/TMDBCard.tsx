@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, Info } from "lucide-react";
+import { Star, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { TMDBMovie, getImageUrl, getTitle, getYear, getMediaType } from "@/lib/tmdb";
@@ -69,7 +69,7 @@ const TMDBCard = ({ item, variant = "default", index = 0 }: TMDBCardProps) => {
         </div>
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center glow-primary">
-            <Info size={16} className="text-primary-foreground" />
+            <Play size={16} className="fill-primary-foreground text-primary-foreground ml-0.5" />
           </div>
         </div>
       </motion.div>
