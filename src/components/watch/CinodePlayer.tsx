@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { Loader2, RefreshCw, Rewind, FastForward, Settings } from "lucide-react";
+import { Loader2, RefreshCw, Settings } from "lucide-react";
 
 export type PlayerSource = {
   kind: "hls" | "mp4" | "iframe";
@@ -12,23 +12,24 @@ interface CinodePlayerProps {
   sources: PlayerSource[];
   poster?: string;
   forcedSrc?: string | null;          // for offline playback
+  initialTime?: number;               // resume position (seconds)
   onEnded?: () => void;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
 }
 
 const STALL_TIMEOUT_MS = 18000;
 
-const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: CinodePlayerProps) => {
+const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTimeUpdate }: CinodePlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const stallTimer = useRef<number | null>(null);
+  const seekedRef = useRef(false);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [levels, setLevels] = useState<{ height: number; index: number }[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 = auto
   const [showQuality, setShowQuality] = useState(false);
-  const playbackRate = 1;
 
   const effectiveSources: PlayerSource[] = forcedSrc
     ? [{ kind: forcedSrc.endsWith(".m3u8") ? "hls" : "mp4", label: "Offline", url: forcedSrc }]
@@ -55,7 +56,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
     });
   }, [effectiveSources.length]);
 
-  useEffect(() => { setIndex(0); setErrorMsg(null); setLoading(true); }, [effectiveSources.map((s) => s.url).join("|")]);
+  useEffect(() => { setIndex(0); setErrorMsg(null); setLoading(true); seekedRef.current = false; }, [effectiveSources.map((s) => s.url).join("|")]);
 
   useEffect(() => {
     if (!current || current.kind === "iframe") return;
@@ -63,16 +64,23 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
     if (!video) return;
 
     setLoading(true); setErrorMsg(null); setLevels([]); setCurrentLevel(-1); armStall();
-    video.playbackRate = playbackRate;
 
-    const onPlaying = () => { setLoading(false); clearStall(); };
+    const seekToInitial = () => {
+      if (!seekedRef.current && initialTime && initialTime > 5) {
+        try { video.currentTime = initialTime; } catch { /* ignore */ }
+        seekedRef.current = true;
+      }
+    };
+
+    const onPlaying = () => { setLoading(false); clearStall(); seekToInitial(); };
+    const onLoaded = () => { setLoading(false); clearStall(); seekToInitial(); };
     const onWaiting = () => { setLoading(true); armStall(); };
     const onError = () => tryNext("video error");
     const onTime = () => onTimeUpdate?.(video.currentTime, video.duration || 0);
     const onEndedHandler = () => onEnded?.();
 
     video.addEventListener("playing", onPlaying);
-    video.addEventListener("loadeddata", onPlaying);
+    video.addEventListener("loadeddata", onLoaded);
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("error", onError);
     video.addEventListener("timeupdate", onTime);
@@ -100,16 +108,15 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
     return () => {
       clearStall();
       video.removeEventListener("playing", onPlaying);
-      video.removeEventListener("loadeddata", onPlaying);
+      video.removeEventListener("loadeddata", onLoaded);
       video.removeEventListener("waiting", onWaiting);
       video.removeEventListener("error", onError);
       video.removeEventListener("timeupdate", onTime);
       video.removeEventListener("ended", onEndedHandler);
       if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
     };
-  }, [current?.url, current?.kind, armStall, tryNext, onEnded, onTimeUpdate, playbackRate]);
+  }, [current?.url, current?.kind, armStall, tryNext, onEnded, onTimeUpdate, initialTime]);
 
-  const skip = (delta: number) => { const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime + delta); };
   const pickLevel = (lvl: number) => {
     if (hlsRef.current) {
       hlsRef.current.currentLevel = lvl;
@@ -129,8 +136,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
           ref={videoRef}
           poster={poster}
           controls
-          controlsList="nodownload noplaybackrate noremoteplayback"
-          disablePictureInPicture
+          controlsList="nodownload"
           playsInline
           crossOrigin="anonymous"
           className="w-full h-full bg-black"
@@ -152,22 +158,6 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
             <RefreshCw size={14} /> Retry
           </button>
         </div>
-      )}
-
-      {/* Skip buttons (non-iframe) — shifted inward */}
-      {current.kind !== "iframe" && (
-        <>
-          <div className="absolute left-[18%] top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
-            <button onClick={() => skip(-10)} aria-label="Rewind 10 seconds" className="rounded-full bg-black/60 hover:bg-black/80 p-3 text-white">
-              <Rewind size={20} />
-            </button>
-          </div>
-          <div className="absolute right-[18%] top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
-            <button onClick={() => skip(10)} aria-label="Forward 10 seconds" className="rounded-full bg-black/60 hover:bg-black/80 p-3 text-white">
-              <FastForward size={20} />
-            </button>
-          </div>
-        </>
       )}
 
       {/* Quality selector (HLS only) */}

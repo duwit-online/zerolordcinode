@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, forwardRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import TMDBCard from "./TMDBCard";
@@ -11,7 +11,7 @@ interface TMDBRowProps {
   autoScroll?: boolean;
 }
 
-const TMDBRow = ({ title, items, variant = "default", autoScroll = true }: TMDBRowProps) => {
+const TMDBRow = forwardRef<HTMLElement, TMDBRowProps>(({ title, items, variant = "default", autoScroll = true }, _ref) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -90,6 +90,8 @@ const TMDBRow = ({ title, items, variant = "default", autoScroll = true }: TMDBR
       </div>
     </section>
   );
-};
+});
+
+TMDBRow.displayName = "TMDBRow";
 
 export default TMDBRow;

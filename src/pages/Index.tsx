@@ -2,6 +2,7 @@ import { useTrending, usePopularMovies, useTopRatedMovies, useNowPlaying, useUpc
 import TMDBRow from "@/components/TMDBRow";
 import TMDBHero from "@/components/TMDBHero";
 import AdBanner from "@/components/AdBanner";
+import ContinueWatchingRow from "@/components/ContinueWatchingRow";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const GENRE_ROWS = [
@@ -53,6 +54,7 @@ const Index = () => {
 
       <div className="relative -mt-12 z-10">
         <AdBanner placement="homepage" className="mx-4 md:mx-8 mb-4" />
+        <ContinueWatchingRow />
         <TMDBRow title="👀 Most Watched" items={mostWatched?.results || []} variant="default" />
         <TMDBRow title="🔥 Trending Now" items={trending?.results || []} variant="default" />
         <TMDBRow title="🎬 Popular Movies" items={popular?.results || []} variant="wide" />
