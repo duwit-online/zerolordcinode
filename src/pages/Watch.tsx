@@ -6,6 +6,7 @@ import { useResolveSources } from "@/hooks/useResolveSources";
 import { useMovieDetail, useTVDetail, useSeasonDetail } from "@/hooks/useTMDB";
 import { getBackdropUrl, getTitle } from "@/lib/tmdb";
 import { getOfflineSrc, makeId } from "@/lib/offlineDownloads";
+import { useResumeProgress, useSaveProgress } from "@/hooks/useWatchProgress";
 
 const Watch = () => {
   const { type, id } = useParams<{ type: string; id: string }>();
@@ -31,6 +32,10 @@ const Watch = () => {
   const args = useMemo(() => ({ tmdbId, type: mediaType, season, episode }), [tmdbId, mediaType, season, episode]);
   const { sources, loading } = useResolveSources(args);
 
+  const progressKey = useMemo(() => ({ tmdbId, mediaType, season: mediaType === "tv" ? season : null, episode: mediaType === "tv" ? episode : null }), [tmdbId, mediaType, season, episode]);
+  const { data: resume } = useResumeProgress(progressKey);
+  const saveProgress = useSaveProgress(progressKey);
+
   const setSE = (s: number, e: number) => { const p = new URLSearchParams(params); p.set("season", String(s)); p.set("episode", String(e)); setParams(p, { replace: true }); };
 
   return (
@@ -45,7 +50,13 @@ const Watch = () => {
             <Loader2 className="animate-spin text-primary" size={36} />
           </div>
         ) : (
-          <CinodePlayer sources={sources} forcedSrc={offlineSrc} poster={getBackdropUrl(detail?.backdrop_path)} />
+          <CinodePlayer
+            sources={sources}
+            forcedSrc={offlineSrc}
+            poster={getBackdropUrl(detail?.backdrop_path)}
+            initialTime={resume?.playback_time || 0}
+            onTimeUpdate={(t, d) => saveProgress(t, d)}
+          />
         )}
 
         <h1 className="mt-5 text-2xl md:text-3xl font-black">{detail ? getTitle(detail as any) : "Loading…"}</h1>
