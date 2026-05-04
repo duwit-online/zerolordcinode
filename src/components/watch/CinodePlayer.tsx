@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { Loader2, RefreshCw, SkipBack, SkipForward } from "lucide-react";
+import { Loader2, RefreshCw, Rewind, FastForward, Settings } from "lucide-react";
 
 export type PlayerSource = {
   kind: "hls" | "mp4" | "iframe";
@@ -25,6 +25,9 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [levels, setLevels] = useState<{ height: number; index: number }[]>([]);
+  const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 = auto
+  const [showQuality, setShowQuality] = useState(false);
   const playbackRate = 1;
 
   const effectiveSources: PlayerSource[] = forcedSrc
@@ -59,7 +62,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
     const video = videoRef.current;
     if (!video) return;
 
-    setLoading(true); setErrorMsg(null); armStall();
+    setLoading(true); setErrorMsg(null); setLevels([]); setCurrentLevel(-1); armStall();
     video.playbackRate = playbackRate;
 
     const onPlaying = () => { setLoading(false); clearStall(); };
@@ -80,6 +83,13 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
       hlsRef.current = hls;
       hls.loadSource(current.url);
       hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        const lvls = hls.levels.map((l, i) => ({ height: l.height || 0, index: i }))
+          .filter((l) => l.height > 0)
+          .sort((a, b) => b.height - a.height);
+        setLevels(lvls);
+      });
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_e, data) => setCurrentLevel(hls.autoLevelEnabled ? -1 : data.level));
       hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) tryNext(`hls ${data.type}/${data.details}`); });
     } else {
       video.src = current.url;
@@ -100,6 +110,14 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
   }, [current?.url, current?.kind, armStall, tryNext, onEnded, onTimeUpdate, playbackRate]);
 
   const skip = (delta: number) => { const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime + delta); };
+  const pickLevel = (lvl: number) => {
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = lvl;
+      setCurrentLevel(lvl);
+    }
+    setShowQuality(false);
+  };
+
   if (!current) return <div className="aspect-video w-full bg-black flex items-center justify-center text-muted-foreground">No playable source.</div>;
 
   return (
@@ -107,7 +125,16 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
       {current.kind === "iframe" ? (
         <iframe src={current.url} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="no-referrer" />
       ) : (
-        <video ref={videoRef} poster={poster} controls playsInline crossOrigin="anonymous" className="w-full h-full bg-black" />
+        <video
+          ref={videoRef}
+          poster={poster}
+          controls
+          controlsList="nodownload noplaybackrate noremoteplayback"
+          disablePictureInPicture
+          playsInline
+          crossOrigin="anonymous"
+          className="w-full h-full bg-black"
+        />
       )}
 
       {loading && current.kind !== "iframe" && (
@@ -127,15 +154,54 @@ const CinodePlayer = ({ sources, poster, forcedSrc, onEnded, onTimeUpdate }: Cin
         </div>
       )}
 
-      {/* Skip buttons (non-iframe) */}
+      {/* Skip buttons (non-iframe) — shifted inward */}
       {current.kind !== "iframe" && (
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
-          <button onClick={() => skip(-10)} className="rounded-full bg-black/60 p-2 text-white"><SkipBack size={16} /></button>
-        </div>
+        <>
+          <div className="absolute left-[18%] top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
+            <button onClick={() => skip(-10)} aria-label="Rewind 10 seconds" className="rounded-full bg-black/60 hover:bg-black/80 p-3 text-white">
+              <Rewind size={20} />
+            </button>
+          </div>
+          <div className="absolute right-[18%] top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
+            <button onClick={() => skip(10)} aria-label="Forward 10 seconds" className="rounded-full bg-black/60 hover:bg-black/80 p-3 text-white">
+              <FastForward size={20} />
+            </button>
+          </div>
+        </>
       )}
-      {current.kind !== "iframe" && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition">
-          <button onClick={() => skip(10)} className="rounded-full bg-black/60 p-2 text-white"><SkipForward size={16} /></button>
+
+      {/* Quality selector (HLS only) */}
+      {current.kind !== "iframe" && levels.length > 0 && (
+        <div className="absolute top-3 right-3 z-20">
+          <button
+            onClick={() => setShowQuality((s) => !s)}
+            aria-label="Quality"
+            className="rounded-full bg-black/60 hover:bg-black/80 p-2 text-white inline-flex items-center gap-1"
+          >
+            <Settings size={16} />
+            <span className="text-xs font-semibold">
+              {currentLevel === -1 ? "Auto" : `${levels.find((l) => l.index === currentLevel)?.height || ""}p`}
+            </span>
+          </button>
+          {showQuality && (
+            <div className="mt-2 min-w-[140px] rounded-xl bg-black/90 border border-white/10 overflow-hidden">
+              <button
+                onClick={() => pickLevel(-1)}
+                className={`w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 ${currentLevel === -1 ? "bg-white/10 font-semibold" : ""}`}
+              >
+                Auto
+              </button>
+              {levels.map((l) => (
+                <button
+                  key={l.index}
+                  onClick={() => pickLevel(l.index)}
+                  className={`w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 ${currentLevel === l.index ? "bg-white/10 font-semibold" : ""}`}
+                >
+                  {l.height}p
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
