@@ -36,10 +36,10 @@ export const useSaveProgress = (key: ProgressKey | null, title?: string, posterP
   const qc = useQueryClient();
 
   const save = useCallback(async (currentTime: number, duration: number) => {
-    if (!user || !key || !duration || currentTime < 5) return;
-    // Save at most every 10 seconds
+    if (!user || !key || !duration || currentTime < 10) return;
+    // Save every ~5 seconds
     const now = Date.now();
-    if (now - lastSaved.current < 10000) return;
+    if (now - lastSaved.current < 5000) return;
     lastSaved.current = now;
 
     const isTV = key.mediaType === "tv";

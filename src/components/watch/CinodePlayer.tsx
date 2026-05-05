@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { Loader2, RefreshCw, Settings } from "lucide-react";
+import { Loader2, RefreshCw, Settings, Play, Pause, Rewind, FastForward } from "lucide-react";
 
 export type PlayerSource = {
   kind: "hls" | "mp4" | "iframe";
@@ -141,6 +141,36 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
           crossOrigin="anonymous"
           className="w-full h-full bg-black"
         />
+      )}
+
+      {/* Center skip + play overlay (non-iframe) */}
+      {current.kind !== "iframe" && !errorMsg && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 bottom-16 flex items-center justify-center gap-10 md:gap-16 opacity-0 group-hover:opacity-100 transition">
+          <button
+            type="button"
+            aria-label="Rewind 10 seconds"
+            onClick={() => { const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); }}
+            className="pointer-events-auto rounded-full bg-black/60 hover:bg-black/80 p-3 text-white"
+          >
+            <Rewind size={22} />
+          </button>
+          <button
+            type="button"
+            aria-label="Play/Pause"
+            onClick={() => { const v = videoRef.current; if (!v) return; if (v.paused) v.play(); else v.pause(); }}
+            className="pointer-events-auto rounded-full bg-primary/90 hover:bg-primary p-4 text-primary-foreground"
+          >
+            {videoRef.current?.paused ? <Play size={26} className="ml-0.5" /> : <Pause size={26} />}
+          </button>
+          <button
+            type="button"
+            aria-label="Forward 10 seconds"
+            onClick={() => { const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration || 0, v.currentTime + 10); }}
+            className="pointer-events-auto rounded-full bg-black/60 hover:bg-black/80 p-3 text-white"
+          >
+            <FastForward size={22} />
+          </button>
+        </div>
       )}
 
       {loading && current.kind !== "iframe" && (
