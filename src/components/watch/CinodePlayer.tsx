@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { Loader2, RefreshCw, Settings } from "lucide-react";
+import { Loader2, RefreshCw, Settings, Play, Pause, Rewind, FastForward } from "lucide-react";
 
 export type PlayerSource = {
   kind: "hls" | "mp4" | "iframe";
