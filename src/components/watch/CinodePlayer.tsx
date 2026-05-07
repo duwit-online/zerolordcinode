@@ -282,28 +282,70 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
 
       {current.kind !== "iframe" && !errorMsg && (
         <>
-          <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-20 flex items-center justify-center px-8">
-            <div className="pointer-events-auto flex items-center gap-5">
+          {/* Centered skip buttons - tighter spacing, responsive sizing */}
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+            <div className="pointer-events-auto flex items-center gap-3 sm:gap-6">
               <button
                 type="button"
                 onClick={() => seekBy(-10)}
                 aria-label="Back 10 seconds"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/80 text-foreground shadow-lg backdrop-blur-sm transition hover:bg-background"
+                className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-background/60 text-foreground backdrop-blur-sm transition hover:bg-background/90 active:scale-95"
               >
-                <Rewind size={20} />
+                <Rewind size={16} className="sm:hidden" />
+                <Rewind size={20} className="hidden sm:block" />
               </button>
               <button
                 type="button"
                 onClick={() => seekBy(10)}
                 aria-label="Forward 10 seconds"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/80 text-foreground shadow-lg backdrop-blur-sm transition hover:bg-background"
+                className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-background/60 text-foreground backdrop-blur-sm transition hover:bg-background/90 active:scale-95"
               >
-                <FastForward size={20} />
+                <FastForward size={16} className="sm:hidden" />
+                <FastForward size={20} className="hidden sm:block" />
               </button>
             </div>
           </div>
 
-          <div className="absolute bottom-16 right-3 z-20 flex items-center gap-2">
+          {/* Unified top-right control cluster: quality, speed, PiP */}
+          <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
+            {levels.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowQuality((open) => !open);
+                    setShowSpeed(false);
+                  }}
+                  aria-label="Quality"
+                  className="inline-flex h-8 items-center gap-1 rounded-full bg-background/70 px-2.5 text-[11px] font-semibold text-foreground backdrop-blur-sm transition hover:bg-background/90"
+                >
+                  <Settings size={13} />
+                  <span>{currentLevel === -1 ? "Auto" : `${levels.find((l) => l.index === currentLevel)?.height || ""}p`}</span>
+                </button>
+                {showQuality && (
+                  <div className="absolute right-0 top-10 max-h-60 min-w-[110px] overflow-y-auto rounded-lg border border-border bg-background/95 shadow-xl">
+                    <button
+                      type="button"
+                      onClick={() => pickLevel(-1)}
+                      className={`w-full px-3 py-2 text-left text-xs transition hover:bg-accent ${currentLevel === -1 ? "bg-accent font-semibold" : ""}`}
+                    >
+                      Auto
+                    </button>
+                    {levels.map((level) => (
+                      <button
+                        key={level.index}
+                        type="button"
+                        onClick={() => pickLevel(level.index)}
+                        className={`w-full px-3 py-2 text-left text-xs transition hover:bg-accent ${currentLevel === level.index ? "bg-accent font-semibold" : ""}`}
+                      >
+                        {level.height}p
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="relative">
               <button
                 type="button"
@@ -312,19 +354,18 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
                   setShowQuality(false);
                 }}
                 aria-label="Playback speed"
-                className="inline-flex h-10 min-w-[3.5rem] items-center justify-center rounded-full border border-border bg-background/80 px-3 text-xs font-semibold text-foreground shadow-lg backdrop-blur-sm transition hover:bg-background"
+                className="inline-flex h-8 min-w-[2.5rem] items-center justify-center rounded-full bg-background/70 px-2 text-[11px] font-semibold text-foreground backdrop-blur-sm transition hover:bg-background/90"
               >
                 {playbackRate}x
               </button>
-
               {showSpeed && (
-                <div className="absolute bottom-12 right-0 min-w-[120px] overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl">
+                <div className="absolute right-0 top-10 min-w-[90px] overflow-hidden rounded-lg border border-border bg-background/95 shadow-xl">
                   {PLAYBACK_RATES.map((rate) => (
                     <button
                       key={rate}
                       type="button"
                       onClick={() => changePlaybackRate(rate)}
-                      className={`w-full px-3 py-2 text-left text-xs text-foreground transition hover:bg-accent ${playbackRate === rate ? "bg-accent font-semibold" : ""}`}
+                      className={`w-full px-3 py-2 text-left text-xs transition hover:bg-accent ${playbackRate === rate ? "bg-accent font-semibold" : ""}`}
                     >
                       {rate}x
                     </button>
@@ -337,53 +378,12 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
               type="button"
               onClick={togglePictureInPicture}
               aria-label="Picture in Picture"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 text-foreground shadow-lg backdrop-blur-sm transition hover:bg-background"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-foreground backdrop-blur-sm transition hover:bg-background/90"
             >
-              <MonitorUp size={16} />
+              <MonitorUp size={14} />
             </button>
           </div>
         </>
-      )}
-
-      {current.kind !== "iframe" && levels.length > 0 && (
-        <div className="absolute right-3 top-3 z-20">
-          <button
-            type="button"
-            onClick={() => {
-              setShowQuality((open) => !open);
-              setShowSpeed(false);
-            }}
-            aria-label="Quality"
-            className="inline-flex items-center gap-1 rounded-full border border-border bg-background/80 p-2 text-foreground shadow-lg backdrop-blur-sm transition hover:bg-background"
-          >
-            <Settings size={16} />
-            <span className="text-xs font-semibold">
-              {currentLevel === -1 ? "Auto" : `${levels.find((level) => level.index === currentLevel)?.height || ""}p`}
-            </span>
-          </button>
-
-          {showQuality && (
-            <div className="mt-2 min-w-[140px] overflow-hidden rounded-xl border border-border bg-background/95 shadow-xl">
-              <button
-                type="button"
-                onClick={() => pickLevel(-1)}
-                className={`w-full px-3 py-2 text-left text-xs text-foreground transition hover:bg-accent ${currentLevel === -1 ? "bg-accent font-semibold" : ""}`}
-              >
-                Auto
-              </button>
-              {levels.map((level) => (
-                <button
-                  key={level.index}
-                  type="button"
-                  onClick={() => pickLevel(level.index)}
-                  className={`w-full px-3 py-2 text-left text-xs text-foreground transition hover:bg-accent ${currentLevel === level.index ? "bg-accent font-semibold" : ""}`}
-                >
-                  {level.height}p
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       )}
     </div>
   );
