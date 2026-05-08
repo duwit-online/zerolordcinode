@@ -298,7 +298,10 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
       )}
 
       {!isIframe && !errorMsg && (
-        <>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute inset-0 transition-opacity duration-200 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        >
           {/* Center skip controls */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="pointer-events-auto flex items-center gap-4 sm:gap-8">
