@@ -404,7 +404,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
               {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
