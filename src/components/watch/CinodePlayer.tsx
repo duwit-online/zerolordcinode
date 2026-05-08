@@ -43,6 +43,29 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
   const [openMenu, setOpenMenu] = useState<null | "quality" | "speed">(null);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimer = useRef<number | null>(null);
+
+  const showControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => {
+      setControlsVisible(false);
+      setOpenMenu(null);
+    }, 3000);
+  }, []);
+
+  const toggleControls = useCallback(() => {
+    if (controlsVisible) {
+      setControlsVisible(false);
+      setOpenMenu(null);
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    } else {
+      showControls();
+    }
+  }, [controlsVisible, showControls]);
+
+  useEffect(() => () => { if (hideTimer.current) window.clearTimeout(hideTimer.current); }, []);
 
   const effectiveSources: PlayerSource[] = forcedSrc
     ? [{ kind: forcedSrc.endsWith(".m3u8") ? "hls" : "mp4", label: "Offline", url: forcedSrc }]
@@ -229,6 +252,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
   return (
     <div
       ref={wrapperRef}
+      onClick={() => !isIframe && toggleControls()}
       className={`group relative w-full overflow-hidden bg-background ${isFullscreen ? "h-screen" : "aspect-video rounded-2xl"}`}
     >
       {isIframe ? (
@@ -274,7 +298,10 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
       )}
 
       {!isIframe && !errorMsg && (
-        <>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute inset-0 transition-opacity duration-200 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        >
           {/* Center skip controls */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="pointer-events-auto flex items-center gap-4 sm:gap-8">
@@ -377,7 +404,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
               {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
