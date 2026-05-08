@@ -252,6 +252,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
   return (
     <div
       ref={wrapperRef}
+      onClick={() => !isIframe && toggleControls()}
       className={`group relative w-full overflow-hidden bg-background ${isFullscreen ? "h-screen" : "aspect-video rounded-2xl"}`}
     >
       {isIframe ? (
