@@ -43,6 +43,29 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
   const [openMenu, setOpenMenu] = useState<null | "quality" | "speed">(null);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimer = useRef<number | null>(null);
+
+  const showControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => {
+      setControlsVisible(false);
+      setOpenMenu(null);
+    }, 3000);
+  }, []);
+
+  const toggleControls = useCallback(() => {
+    if (controlsVisible) {
+      setControlsVisible(false);
+      setOpenMenu(null);
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    } else {
+      showControls();
+    }
+  }, [controlsVisible, showControls]);
+
+  useEffect(() => () => { if (hideTimer.current) window.clearTimeout(hideTimer.current); }, []);
 
   const effectiveSources: PlayerSource[] = forcedSrc
     ? [{ kind: forcedSrc.endsWith(".m3u8") ? "hls" : "mp4", label: "Offline", url: forcedSrc }]
