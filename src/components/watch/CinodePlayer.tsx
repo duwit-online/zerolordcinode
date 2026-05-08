@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
-import { FastForward, Loader2, MonitorUp, RefreshCw, Rewind, Settings } from "lucide-react";
+import {
+  FastForward,
+  Loader2,
+  Maximize,
+  Minimize,
+  MonitorUp,
+  RefreshCw,
+  Rewind,
+  Settings,
+} from "lucide-react";
 
 export type PlayerSource = {
   kind: "hls" | "mp4" | "iframe";
@@ -21,6 +30,7 @@ const STALL_TIMEOUT_MS = 18000;
 const PLAYBACK_RATES = [0.5, 1, 1.25, 1.5, 2];
 
 const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTimeUpdate }: CinodePlayerProps) => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const stallTimer = useRef<number | null>(null);
@@ -30,9 +40,9 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [levels, setLevels] = useState<{ height: number; index: number }[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1);
-  const [showQuality, setShowQuality] = useState(false);
-  const [showSpeed, setShowSpeed] = useState(false);
+  const [openMenu, setOpenMenu] = useState<null | "quality" | "speed">(null);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const effectiveSources: PlayerSource[] = forcedSrc
     ? [{ kind: forcedSrc.endsWith(".m3u8") ? "hls" : "mp4", label: "Offline", url: forcedSrc }]
@@ -60,7 +70,6 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
         setLoading(false);
         return currentIndex;
       }
-
       setLoading(true);
       setErrorMsg(null);
       return currentIndex + 1;
@@ -78,54 +87,38 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
     setLoading(true);
     setLevels([]);
     setCurrentLevel(-1);
-    setShowQuality(false);
-    setShowSpeed(false);
+    setOpenMenu(null);
     seekedRef.current = false;
   }, [sourceKey]);
 
   useEffect(() => {
-    if (!current || current.kind === "iframe") {
-      return;
-    }
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
+  useEffect(() => {
+    if (!current || current.kind === "iframe") return;
     const video = videoRef.current;
-    if (!video) {
-      return;
-    }
+    if (!video) return;
 
     setLoading(true);
     setErrorMsg(null);
     setLevels([]);
     setCurrentLevel(-1);
-    setShowQuality(false);
-    setShowSpeed(false);
+    setOpenMenu(null);
     armStall();
 
     const seekToInitial = () => {
       if (!seekedRef.current && initialTime && initialTime > 5) {
-        try {
-          video.currentTime = initialTime;
-        } catch {
-          // ignore seek issues
-        }
+        try { video.currentTime = initialTime; } catch { /* ignore */ }
         seekedRef.current = true;
       }
     };
 
-    const onPlaying = () => {
-      setLoading(false);
-      clearStall();
-      seekToInitial();
-    };
-    const onLoaded = () => {
-      setLoading(false);
-      clearStall();
-      seekToInitial();
-    };
-    const onWaiting = () => {
-      setLoading(true);
-      armStall();
-    };
+    const onPlaying = () => { setLoading(false); clearStall(); seekToInitial(); };
+    const onLoaded = () => { setLoading(false); clearStall(); seekToInitial(); };
+    const onWaiting = () => { setLoading(true); armStall(); };
     const onError = () => tryNext("video error");
     const onTime = () => onTimeUpdate?.(video.currentTime, video.duration || 0);
     const onEndedHandler = () => onEnded?.();
@@ -155,9 +148,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
         setCurrentLevel(hls.autoLevelEnabled ? -1 : data.level);
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          tryNext(`hls ${data.type}/${data.details}`);
-        }
+        if (data.fatal) tryNext(`hls ${data.type}/${data.details}`);
       });
     } else {
       video.src = current.url;
@@ -165,9 +156,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
     }
 
     video.playbackRate = playbackRate;
-    video.play().catch(() => {
-      // user gesture may be required
-    });
+    video.play().catch(() => { /* gesture required */ });
 
     return () => {
       clearStall();
@@ -190,53 +179,59 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
       hlsRef.current.currentLevel = levelIndex;
       setCurrentLevel(levelIndex);
     }
-    setShowQuality(false);
+    setOpenMenu(null);
   };
 
   const seekBy = (seconds: number) => {
     const video = videoRef.current;
-    if (!video) {
-      return;
-    }
-
+    if (!video) return;
     const duration = Number.isFinite(video.duration) ? video.duration : Number.MAX_SAFE_INTEGER;
     video.currentTime = Math.min(Math.max(video.currentTime + seconds, 0), duration);
   };
 
   const changePlaybackRate = (rate: number) => {
     const video = videoRef.current;
-    if (video) {
-      video.playbackRate = rate;
-    }
+    if (video) video.playbackRate = rate;
     setPlaybackRate(rate);
-    setShowSpeed(false);
+    setOpenMenu(null);
   };
 
   const togglePictureInPicture = async () => {
     const video = videoRef.current;
-    if (!video || !document.pictureInPictureEnabled) {
-      return;
-    }
-
+    if (!video) return;
     try {
       if (document.pictureInPictureElement === video) {
         await document.exitPictureInPicture();
-        return;
+      } else if (document.pictureInPictureEnabled) {
+        await video.requestPictureInPicture();
       }
+    } catch { /* ignore */ }
+  };
 
-      await video.requestPictureInPicture();
-    } catch {
-      // ignore unsupported/browser gesture issues
-    }
+  const toggleFullscreen = async () => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await wrapper.requestFullscreen();
+      }
+    } catch { /* ignore */ }
   };
 
   if (!current) {
     return <div className="flex aspect-video w-full items-center justify-center bg-background text-muted-foreground">No playable source.</div>;
   }
 
+  const isIframe = current.kind === "iframe";
+
   return (
-    <div className="group relative aspect-video w-full overflow-hidden rounded-2xl bg-background">
-      {current.kind === "iframe" ? (
+    <div
+      ref={wrapperRef}
+      className={`group relative w-full overflow-hidden bg-background ${isFullscreen ? "h-screen" : "aspect-video rounded-2xl"}`}
+    >
+      {isIframe ? (
         <iframe
           src={current.url}
           className="h-full w-full"
@@ -249,14 +244,15 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
           ref={videoRef}
           poster={poster}
           controls
-          controlsList="nodownload"
+          controlsList="nodownload nofullscreen noremoteplayback"
+          disablePictureInPicture={false}
           playsInline
           crossOrigin="anonymous"
           className="h-full w-full bg-background"
         />
       )}
 
-      {loading && current.kind !== "iframe" && (
+      {loading && !isIframe && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-background/40">
           <Loader2 className="animate-spin text-primary" size={36} />
           <p className="mt-3 text-xs text-foreground/80">Loading video…</p>
@@ -269,10 +265,7 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
           <p className="mb-4 text-xs text-muted-foreground">{errorMsg}</p>
           <button
             type="button"
-            onClick={() => {
-              setIndex(0);
-              setErrorMsg(null);
-            }}
+            onClick={() => { setIndex(0); setErrorMsg(null); }}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
           >
             <RefreshCw size={14} /> Retry
@@ -280,49 +273,44 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
         </div>
       )}
 
-      {current.kind !== "iframe" && !errorMsg && (
+      {!isIframe && !errorMsg && (
         <>
-          {/* Centered skip buttons - tighter spacing, responsive sizing */}
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-            <div className="pointer-events-auto flex items-center gap-3 sm:gap-6">
+          {/* Center skip controls */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="pointer-events-auto flex items-center gap-4 sm:gap-8">
               <button
                 type="button"
                 onClick={() => seekBy(-10)}
                 aria-label="Back 10 seconds"
-                className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-background/60 text-foreground backdrop-blur-sm transition hover:bg-background/90 active:scale-95"
+                className="inline-flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-background/50 text-foreground backdrop-blur-sm transition hover:bg-background/80 active:scale-95"
               >
-                <Rewind size={16} className="sm:hidden" />
-                <Rewind size={20} className="hidden sm:block" />
+                <Rewind className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
               <button
                 type="button"
                 onClick={() => seekBy(10)}
                 aria-label="Forward 10 seconds"
-                className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-background/60 text-foreground backdrop-blur-sm transition hover:bg-background/90 active:scale-95"
+                className="inline-flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-background/50 text-foreground backdrop-blur-sm transition hover:bg-background/80 active:scale-95"
               >
-                <FastForward size={16} className="sm:hidden" />
-                <FastForward size={20} className="hidden sm:block" />
+                <FastForward className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
             </div>
           </div>
 
-          {/* Unified top-right control cluster: quality, speed, PiP */}
-          <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
+          {/* Top-right unified control cluster */}
+          <div className="absolute right-2 top-2 flex items-center gap-1.5">
             {levels.length > 0 && (
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowQuality((open) => !open);
-                    setShowSpeed(false);
-                  }}
+                  onClick={() => setOpenMenu((m) => (m === "quality" ? null : "quality"))}
                   aria-label="Quality"
                   className="inline-flex h-8 items-center gap-1 rounded-full bg-background/70 px-2.5 text-[11px] font-semibold text-foreground backdrop-blur-sm transition hover:bg-background/90"
                 >
-                  <Settings size={13} />
+                  <Settings className="h-3.5 w-3.5" />
                   <span>{currentLevel === -1 ? "Auto" : `${levels.find((l) => l.index === currentLevel)?.height || ""}p`}</span>
                 </button>
-                {showQuality && (
+                {openMenu === "quality" && (
                   <div className="absolute right-0 top-10 max-h-60 min-w-[110px] overflow-y-auto rounded-lg border border-border bg-background/95 shadow-xl">
                     <button
                       type="button"
@@ -349,16 +337,13 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
             <div className="relative">
               <button
                 type="button"
-                onClick={() => {
-                  setShowSpeed((open) => !open);
-                  setShowQuality(false);
-                }}
+                onClick={() => setOpenMenu((m) => (m === "speed" ? null : "speed"))}
                 aria-label="Playback speed"
-                className="inline-flex h-8 min-w-[2.5rem] items-center justify-center rounded-full bg-background/70 px-2 text-[11px] font-semibold text-foreground backdrop-blur-sm transition hover:bg-background/90"
+                className="inline-flex h-8 min-w-[2.75rem] items-center justify-center rounded-full bg-background/70 px-2 text-[11px] font-semibold text-foreground backdrop-blur-sm transition hover:bg-background/90"
               >
                 {playbackRate}x
               </button>
-              {showSpeed && (
+              {openMenu === "speed" && (
                 <div className="absolute right-0 top-10 min-w-[90px] overflow-hidden rounded-lg border border-border bg-background/95 shadow-xl">
                   {PLAYBACK_RATES.map((rate) => (
                     <button
@@ -380,7 +365,16 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
               aria-label="Picture in Picture"
               className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-foreground backdrop-blur-sm transition hover:bg-background/90"
             >
-              <MonitorUp size={14} />
+              <MonitorUp className="h-3.5 w-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              aria-label="Toggle fullscreen"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-foreground backdrop-blur-sm transition hover:bg-background/90"
+            >
+              {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
             </button>
           </div>
         </>
