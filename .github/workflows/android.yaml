@@ -1,52 +1,86 @@
+# .github/workflows/android.yml
+
 name: Build Android APK
+
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
+
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Android App
+    name: Build Android APK
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
+    steps:
+      # Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Setup Node.js 22
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: npm
 
-      - name: Install dependencies
+      # Install Dependencies
+      - name: Install Dependencies
         run: npm install
 
-      - name: Build Web Assets
+      # Build Vite/Lovable App
+      - name: Build Web App
         run: npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'http://163.254.193.7:3000' }}
 
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'gradle'
+      # Verify dist folder exists
+      - name: Verify Build Output
+        run: |
+          echo "Checking dist folder..."
+          ls -la
+          ls -la dist
 
-      - name: Capacitor Setup and Sync
+      # Setup Java 21
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      # Setup Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Install Capacitor Android Platform
+      - name: Install Capacitor Android
+        run: npm install @capacitor/android @capacitor/cli
+
+      # Generate Android Project If Missing
+      - name: Create Android Project
         run: |
           if [ ! -d "android" ]; then
             npx cap add android
           fi
-          npx cap sync android
 
-      - name: Build Android APK
+      # Sync Built Web Assets Into Android
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      # Build Debug APK
+      - name: Build APK
         run: |
           cd android
-          chmod +x ./gradlew || true
+          chmod +x gradlew
           ./gradlew assembleDebug
 
+      # Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: cinode-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
