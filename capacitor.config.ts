@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.00a31809aafa4feaa3b72b8bfaac4ee5',
-  appName: 'usmancinoderemix',
+  appId: 'com.cinode',
+  appName: 'Cinode',
   webDir: 'dist',
   server: {
     url: 'https://00a31809-aafa-4fea-a3b7-2b8bfaac4ee5.lovableproject.com?forceHideBadge=true',
