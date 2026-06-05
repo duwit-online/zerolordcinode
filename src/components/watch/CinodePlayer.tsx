@@ -143,8 +143,9 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
     armStall();
 
     const seekToInitial = () => {
-      if (!seekedRef.current && initialTime && initialTime > 5) {
-        try { video.currentTime = initialTime; } catch { /* ignore */ }
+      const init = initialTimeRef.current;
+      if (!seekedRef.current && init && init > 5) {
+        try { video.currentTime = init; } catch { /* ignore */ }
         seekedRef.current = true;
       }
     };
@@ -153,8 +154,8 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
     const onLoaded = () => { setLoading(false); clearStall(); seekToInitial(); };
     const onWaiting = () => { setLoading(true); armStall(); };
     const onError = () => tryNext("video error");
-    const onTime = () => onTimeUpdate?.(video.currentTime, video.duration || 0);
-    const onEndedHandler = () => onEnded?.();
+    const onTime = () => onTimeUpdateRef.current?.(video.currentTime, video.duration || 0);
+    const onEndedHandler = () => onEndedRef.current?.();
     const onRateChange = () => setPlaybackRate(video.playbackRate || 1);
 
     video.addEventListener("playing", onPlaying);
@@ -188,7 +189,6 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
       video.load();
     }
 
-    video.playbackRate = playbackRate;
     video.play().catch(() => { /* gesture required */ });
 
     return () => {
@@ -205,7 +205,15 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
         hlsRef.current = null;
       }
     };
-  }, [armStall, current, initialTime, onEnded, onTimeUpdate, playbackRate, tryNext]);
+    // Only re-run when the actual source URL/kind changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.url, current?.kind]);
+
+  // Apply playback rate without tearing down the player
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) video.playbackRate = playbackRate;
+  }, [playbackRate]);
 
   const pickLevel = (levelIndex: number) => {
     if (hlsRef.current) {
