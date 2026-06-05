@@ -46,6 +46,14 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimer = useRef<number | null>(null);
 
+  // Keep callbacks in refs so the playback effect doesn't re-run on every parent render
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onEndedRef = useRef(onEnded);
+  const initialTimeRef = useRef(initialTime);
+  useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
+  useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
+  useEffect(() => { initialTimeRef.current = initialTime; }, [initialTime]);
+
   const showControls = useCallback(() => {
     setControlsVisible(true);
     if (hideTimer.current) window.clearTimeout(hideTimer.current);
@@ -67,9 +75,11 @@ const CinodePlayer = ({ sources, poster, forcedSrc, initialTime, onEnded, onTime
 
   useEffect(() => () => { if (hideTimer.current) window.clearTimeout(hideTimer.current); }, []);
 
-  const effectiveSources: PlayerSource[] = forcedSrc
-    ? [{ kind: forcedSrc.endsWith(".m3u8") ? "hls" : "mp4", label: "Offline", url: forcedSrc }]
-    : sources;
+  const effectiveSources: PlayerSource[] = useMemo(() => (
+    forcedSrc
+      ? [{ kind: (forcedSrc.endsWith(".m3u8") ? "hls" : "mp4") as PlayerSource["kind"], label: "Offline", url: forcedSrc }]
+      : sources
+  ), [forcedSrc, sources]);
   const current = effectiveSources[index];
   const sourceKey = useMemo(() => effectiveSources.map((source) => source.url).join("|"), [effectiveSources]);
 
