@@ -8,6 +8,8 @@ interface ResolveArgs {
   type: "movie" | "tv";
   season?: number;
   episode?: number;
+  title?: string;
+  year?: number;
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -36,7 +38,8 @@ export function useResolveSources(args: ResolveArgs) {
 
       // Get admin-configured order
       const { data: orderRow } = await supabase.from("app_settings").select("value").eq("key", "playback_order").maybeSingle();
-      const order = normalizePlaybackOrder((orderRow?.value as any)?.order ?? DEFAULT_PLAYBACK_ORDER);
+      const preferredOrder = normalizePlaybackOrder((orderRow?.value as any)?.order ?? DEFAULT_PLAYBACK_ORDER);
+      const order = [...preferredOrder, ...DEFAULT_PLAYBACK_ORDER.filter((key) => !preferredOrder.includes(key))];
 
       // Resolve jellyfin once
       let jfDirect: PlayerSource | null = null;
@@ -44,6 +47,8 @@ export function useResolveSources(args: ResolveArgs) {
       try {
         const params = new URLSearchParams({ tmdbId: String(args.tmdbId), type: args.type });
         if (args.type === "tv") { params.set("season", String(args.season || 1)); params.set("episode", String(args.episode || 1)); }
+        if (args.title) params.set("title", args.title);
+        if (args.year) params.set("year", String(args.year));
         const res = await fetch(`${SUPABASE_URL}/functions/v1/jellyfin-proxy/resolve?${params}`, {
           headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
         });
@@ -79,7 +84,7 @@ export function useResolveSources(args: ResolveArgs) {
       if (!cancelled) { setSources(list); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [args.tmdbId, args.type, args.season, args.episode]);
+  }, [args.tmdbId, args.type, args.season, args.episode, args.title, args.year]);
 
   return { sources, loading };
 }

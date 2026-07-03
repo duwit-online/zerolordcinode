@@ -63,7 +63,7 @@ const AdminPlaybackSettings = () => {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <div className="flex items-center gap-2"><ListOrdered size={18} className="text-primary" /><h3 className="font-bold">Playback Source Order</h3></div>
-        <p className="text-xs text-muted-foreground">Reorder using arrows. Top = tried first. The player follows this exact sequence and never reorders.</p>
+        <p className="text-xs text-muted-foreground">Reorder using arrows. Top = tried first. Any built-in source not listed is kept as an automatic safety fallback.</p>
 
         <div className="space-y-1.5">
           {currentOrder.map((k, i) => (
@@ -120,7 +120,7 @@ const AdminPlaybackSettings = () => {
             <Eye size={14} className="text-primary" />
             <p className="text-xs font-semibold text-primary">User playback sequence preview</p>
           </div>
-          <p className="text-xs text-muted-foreground mb-2">Players will try sources in this exact order. If one fails or is unavailable, the next is tried — never reordered.</p>
+          <p className="text-xs text-muted-foreground mb-2">Players try this preferred order first. If every preferred source fails or is unavailable, remaining built-in sources are tried as fallback.</p>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
             {storedOrder.map((k, i) => (
               <span key={k} className="inline-flex items-center gap-1">

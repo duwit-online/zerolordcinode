@@ -30,7 +30,11 @@ const Watch = () => {
   const { data: seasonData } = useSeasonDetail(mediaType === "tv" ? tmdbId : 0, season);
   const detail = mediaType === "movie" ? movie : tv;
 
-  const args = useMemo(() => ({ tmdbId, type: mediaType, season, episode }), [tmdbId, mediaType, season, episode]);
+  const resolveTitle = detail ? getTitle(detail as any) : undefined;
+  const resolveYear = detail
+    ? Number(((detail as any).release_date || (detail as any).first_air_date || "").slice(0, 4)) || undefined
+    : undefined;
+  const args = useMemo(() => ({ tmdbId, type: mediaType, season, episode, title: resolveTitle, year: resolveYear }), [tmdbId, mediaType, season, episode, resolveTitle, resolveYear]);
   const { sources, loading } = useResolveSources(args);
 
   const progressKey = useMemo(() => ({ tmdbId, mediaType, season: mediaType === "tv" ? season : null, episode: mediaType === "tv" ? episode : null }), [tmdbId, mediaType, season, episode]);

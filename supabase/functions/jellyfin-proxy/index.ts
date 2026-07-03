@@ -45,8 +45,37 @@ async function jfFetch(base: string, apiKey: string, path: string) {
 }
 
 // Robust TMDB lookup: try AnyProviderIdEquals first (case variations), fall back to scanning.
-async function findItem(base: string, apiKey: string, tmdbId: number, type: string) {
+const normalizeTitle = (value: string) => value.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim();
+const titleSimilarity = (a: string, b: string) => {
+  const aTokens = new Set(normalizeTitle(a).split(" ").filter((t) => t.length > 2));
+  const bTokens = new Set(normalizeTitle(b).split(" ").filter((t) => t.length > 2));
+  if (!aTokens.size || !bTokens.size) return 0;
+  const shared = [...aTokens].filter((t) => bTokens.has(t)).length;
+  return shared / Math.max(aTokens.size, bTokens.size);
+};
+const yearMatches = (itemYear: unknown, targetYear?: number) => {
+  if (!targetYear) return true;
+  const y = Number(itemYear || 0);
+  return !!y && Math.abs(y - targetYear) <= 1;
+};
+
+async function findItem(base: string, apiKey: string, tmdbId: number, type: string, title?: string, year?: number) {
   const itemType = type === "tv" ? "Series" : "Movie";
+  const titleKey = title ? normalizeTitle(title) : "";
+  const matchTmdb = (it: any) => {
+    const pids = it.ProviderIds || {};
+    const k = Object.keys(pids).find((x) => x.toLowerCase() === "tmdb");
+    if (!k || String(pids[k]) !== String(tmdbId)) return false;
+    if (!titleKey) return true;
+    const names = [it.Name, it.OriginalTitle].filter(Boolean);
+    const closeTitle = names.some((n: string) => titleSimilarity(n, title) >= 0.5 || normalizeTitle(n).includes(titleKey) || titleKey.includes(normalizeTitle(n)));
+    return closeTitle && yearMatches(it.ProductionYear, year);
+  };
+  const matchTitle = (it: any) => {
+    if (!titleKey) return false;
+    const names = [it.Name, it.OriginalTitle].filter(Boolean).map((n: string) => normalizeTitle(n));
+    return names.some((n: string) => (n === titleKey || n.includes(titleKey) || titleKey.includes(n)) && yearMatches(it.ProductionYear, year));
+  };
   const variants = [
     `Tmdb.${tmdbId}`,
     `tmdb.${tmdbId}`,
@@ -60,26 +89,37 @@ async function findItem(base: string, apiKey: string, tmdbId: number, type: stri
         apiKey,
         `/Items?Recursive=true&IncludeItemTypes=${itemType}&Fields=ProviderIds&AnyProviderIdEquals=${encodeURIComponent(v)}&Limit=5`,
       );
-      const items = (data.Items || []).filter((it: any) => {
-        const pids = it.ProviderIds || {};
-        const k = Object.keys(pids).find((x) => x.toLowerCase() === "tmdb");
-        return k ? String(pids[k]) === String(tmdbId) : false;
-      });
+      const items = (data.Items || []).filter(matchTmdb);
       if (items.length) return items[0];
     } catch (_e) { /* try next */ }
   }
+
+  if (titleKey) {
+    try {
+      const params = new URLSearchParams({
+        Recursive: "true",
+        IncludeItemTypes: itemType,
+        Fields: "ProviderIds,ProductionYear,OriginalTitle",
+        SearchTerm: title,
+        Limit: "30",
+      });
+      const data = await jfFetch(base, apiKey, `/Items?${params}`);
+      const items = data.Items || [];
+      const tmdbMatch = items.find(matchTmdb);
+      if (tmdbMatch) return tmdbMatch;
+      const titleMatch = items.find(matchTitle);
+      if (titleMatch) return titleMatch;
+    } catch (_e) { /* fall back to library scan */ }
+  }
+
   // Fallback: paginate (cap to avoid huge libraries) and match in code
   const data = await jfFetch(
     base,
     apiKey,
-    `/Items?Recursive=true&IncludeItemTypes=${itemType}&Fields=ProviderIds&Limit=2000`,
+    `/Items?Recursive=true&IncludeItemTypes=${itemType}&Fields=ProviderIds,ProductionYear,OriginalTitle&Limit=2000`,
   );
-  const match = (data.Items || []).find((it: any) => {
-    const pids = it.ProviderIds || {};
-    const k = Object.keys(pids).find((x) => x.toLowerCase() === "tmdb");
-    return k ? String(pids[k]) === String(tmdbId) : false;
-  });
-  return match || null;
+  const items = data.Items || [];
+  return items.find(matchTmdb) || items.find(matchTitle) || null;
 }
 
 async function findEpisode(base: string, apiKey: string, seriesId: string, season: number, episode: number) {
@@ -98,16 +138,20 @@ function buildHls(base: string, apiKey: string, itemId: string) {
 
 function rewritePlaylist(text: string, baseUrl: string): string {
   const baseDir = baseUrl.substring(0, baseUrl.lastIndexOf("/") + 1);
+  const sourceApiKey = new URL(baseUrl).searchParams.get("api_key");
+  const proxied = (uri: string) => {
+    const abs = new URL(uri, baseDir);
+    if (sourceApiKey && !abs.searchParams.has("api_key")) abs.searchParams.set("api_key", sourceApiKey);
+    return `${PROXY_BASE}/stream?u=${b64encode(abs.toString())}`;
+  };
   return text.split("\n").map((line) => {
     const t = line.trim();
     if (!t || t.startsWith("#")) {
       return line.replace(/URI="([^"]+)"/g, (_m, u) => {
-        const abs = new URL(u, baseDir).toString();
-        return `URI="${PROXY_BASE}/stream?u=${b64encode(abs)}"`;
+        return `URI="${proxied(u)}"`;
       });
     }
-    const abs = new URL(t, baseDir).toString();
-    return `${PROXY_BASE}/stream?u=${b64encode(abs)}`;
+    return proxied(t);
   }).join("\n");
 }
 
@@ -116,12 +160,14 @@ async function handleResolve(url: URL): Promise<Response> {
   const type = url.searchParams.get("type") || "movie";
   const season = Number(url.searchParams.get("season") || 0);
   const episode = Number(url.searchParams.get("episode") || 0);
+  const title = url.searchParams.get("title") || undefined;
+  const year = Number(url.searchParams.get("year") || 0) || undefined;
   if (!tmdbId) return json({ error: "tmdbId required" }, 400);
 
   const servers = await getServers();
   for (const srv of servers) {
     try {
-      const item = await findItem(srv.server_url, srv.api_key_encrypted, tmdbId, type);
+      const item = await findItem(srv.server_url, srv.api_key_encrypted, tmdbId, type, title, year);
       if (!item) { console.log(`[resolve] no match for tmdb ${tmdbId} on ${srv.name}`); continue; }
       let target = item;
       if (type === "tv") {
@@ -129,8 +175,9 @@ async function handleResolve(url: URL): Promise<Response> {
         if (!ep) continue;
         target = ep;
       }
-      const directUrl = buildDirect(srv.server_url, srv.api_key_encrypted, target.Id);
+      const directAbs = buildDirect(srv.server_url, srv.api_key_encrypted, target.Id);
       const hlsAbs = buildHls(srv.server_url, srv.api_key_encrypted, target.Id);
+      const directUrl = `${PROXY_BASE}/stream?u=${b64encode(directAbs)}`;
       const hlsUrl = `${PROXY_BASE}/stream?u=${b64encode(hlsAbs)}`;
       return json({ directUrl, hlsUrl, title: target.Name, itemId: target.Id, serverName: srv.name });
     } catch (e) { console.error("server failed", e); }
@@ -227,8 +274,9 @@ async function handleTestPlay(url: URL): Promise<Response> {
   if (!serverId || !itemId) return json({ error: "serverId & itemId required" }, 400);
   const srv = await getServerById(serverId);
   if (!srv) return json({ error: "server not found" }, 404);
-  const directUrl = buildDirect(srv.server_url, srv.api_key_encrypted, itemId);
+  const directAbs = buildDirect(srv.server_url, srv.api_key_encrypted, itemId);
   const hlsAbs = buildHls(srv.server_url, srv.api_key_encrypted, itemId);
+  const directUrl = `${PROXY_BASE}/stream?u=${b64encode(directAbs)}`;
   const hlsUrl = `${PROXY_BASE}/stream?u=${b64encode(hlsAbs)}`;
   return json({ directUrl, hlsUrl });
 }
