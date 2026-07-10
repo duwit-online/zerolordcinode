@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ProgressKey {
-  tmdbId: number;
+  tmdbId: string | number;
   mediaType: "movie" | "tv";
   season?: number | null;
   episode?: number | null;
