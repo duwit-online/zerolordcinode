@@ -6,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 interface StartArgs {
   url: string;
   sourceLabel: string;
-  tmdbId: number;
+  tmdbId: string | number;
   type: "movie" | "tv";
   season?: number;
   episode?: number;

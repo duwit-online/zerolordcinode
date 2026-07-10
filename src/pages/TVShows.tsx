@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getTVByGenre } from "@/lib/tmdb";
 
 const TVShows = () => {
-  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<string | number | null>(null);
   const { data: popular } = usePopularTV();
   const { data: topRated } = useTopRatedTV();
   const { data: airingToday } = useAiringToday();

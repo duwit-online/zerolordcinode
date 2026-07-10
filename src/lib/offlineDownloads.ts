@@ -8,7 +8,7 @@ const FOLDER = "cinode-downloads";
 
 export interface OfflineMeta {
   id: string;                // tmdb_<type>_<id>[_s_e]
-  tmdbId: number;
+  tmdbId: string | number;
   type: "movie" | "tv";
   season?: number;
   episode?: number;
@@ -21,7 +21,7 @@ export interface OfflineMeta {
   sourceLabel: string;
 }
 
-export function makeId(tmdbId: number, type: string, season?: number, episode?: number) {
+export function makeId(tmdbId: string | number, type: string, season?: number, episode?: number) {
   return type === "tv" ? `tmdb_tv_${tmdbId}_s${season ?? 1}e${episode ?? 1}` : `tmdb_movie_${tmdbId}`;
 }
 
@@ -55,7 +55,7 @@ interface DownloadArgs {
   id: string;
   url: string;
   title: string;
-  tmdbId: number;
+  tmdbId: string | number;
   type: "movie" | "tv";
   season?: number;
   episode?: number;

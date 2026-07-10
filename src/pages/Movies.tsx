@@ -5,7 +5,7 @@ import TMDBCard from "@/components/TMDBCard";
 import { motion } from "framer-motion";
 
 const Movies = () => {
-  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<string | number | null>(null);
   const { data: popular } = usePopularMovies();
   const { data: topRated } = useTopRatedMovies();
   const { data: nowPlaying } = useNowPlaying();

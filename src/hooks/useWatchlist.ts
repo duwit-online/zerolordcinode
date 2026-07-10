@@ -19,7 +19,7 @@ export const useWatchlist = () => {
   });
 };
 
-export const useIsInWatchlist = (tmdbId: number, mediaType: string) => {
+export const useIsInWatchlist = (tmdbId: string | number, mediaType: string) => {
   const { data: watchlist } = useWatchlist();
   return watchlist?.some((w: any) => w.tmdb_id === tmdbId && w.media_type === mediaType) || false;
 };
@@ -29,11 +29,11 @@ export const useToggleWatchlist = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ tmdbId, mediaType, title, posterPath, isInList }: {
-      tmdbId: number; mediaType: string; title: string; posterPath: string; isInList: boolean;
+      tmdbId: string | number; mediaType: string; title: string; posterPath: string; isInList: boolean;
     }) => {
       if (!user) throw new Error("Not authenticated");
       if (isInList) {
-        await supabase.from("watchlist").delete().eq("user_id", user.id).eq("tmdb_id", tmdbId).eq("media_type", mediaType);
+        await supabase.from("watchlist").delete().eq("user_id", user.id).eq("tmdb_id", String(tmdbId)).eq("media_type", mediaType);
       } else {
         await supabase.from("watchlist").insert({ user_id: user.id, tmdb_id: tmdbId, media_type: mediaType, title, poster_path: posterPath } as any);
       }

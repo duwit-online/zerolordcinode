@@ -215,6 +215,36 @@ export type Database = {
         }
         Relationships: []
       }
+      jellyfin_user_links: {
+        Row: {
+          access_token_encrypted: string
+          created_at: string
+          id: string
+          jellyfin_user_id: string
+          jellyfin_username: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted: string
+          created_at?: string
+          id?: string
+          jellyfin_user_id: string
+          jellyfin_username: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string
+          created_at?: string
+          id?: string
+          jellyfin_user_id?: string
+          jellyfin_username?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       media_sources: {
         Row: {
           created_at: string
@@ -228,7 +258,7 @@ export type Database = {
           source: string
           stream_url: string
           title: string | null
-          tmdb_id: number
+          tmdb_id: string
           updated_at: string
         }
         Insert: {
@@ -243,7 +273,7 @@ export type Database = {
           source?: string
           stream_url: string
           title?: string | null
-          tmdb_id: number
+          tmdb_id: string
           updated_at?: string
         }
         Update: {
@@ -258,7 +288,7 @@ export type Database = {
           source?: string
           stream_url?: string
           title?: string | null
-          tmdb_id?: number
+          tmdb_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -273,7 +303,7 @@ export type Database = {
           id: string
           media_type: string
           season: number | null
-          tmdb_id: number
+          tmdb_id: string
           updated_at: string
         }
         Insert: {
@@ -285,7 +315,7 @@ export type Database = {
           id?: string
           media_type: string
           season?: number | null
-          tmdb_id: number
+          tmdb_id: string
           updated_at?: string
         }
         Update: {
@@ -297,7 +327,7 @@ export type Database = {
           id?: string
           media_type?: string
           season?: number | null
-          tmdb_id?: number
+          tmdb_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -599,7 +629,7 @@ export type Database = {
           media_type: string
           playback_time: number
           season: number | null
-          tmdb_id: number
+          tmdb_id: string
           updated_at: string
           user_id: string
         }
@@ -612,7 +642,7 @@ export type Database = {
           media_type: string
           playback_time?: number
           season?: number | null
-          tmdb_id: number
+          tmdb_id: string
           updated_at?: string
           user_id: string
         }
@@ -625,7 +655,7 @@ export type Database = {
           media_type?: string
           playback_time?: number
           season?: number | null
-          tmdb_id?: number
+          tmdb_id?: string
           updated_at?: string
           user_id?: string
         }
@@ -656,7 +686,7 @@ export type Database = {
           media_type: string
           poster_path: string | null
           title: string | null
-          tmdb_id: number
+          tmdb_id: string
           user_id: string
         }
         Insert: {
@@ -665,7 +695,7 @@ export type Database = {
           media_type: string
           poster_path?: string | null
           title?: string | null
-          tmdb_id: number
+          tmdb_id: string
           user_id: string
         }
         Update: {
@@ -674,7 +704,7 @@ export type Database = {
           media_type?: string
           poster_path?: string | null
           title?: string | null
-          tmdb_id?: number
+          tmdb_id?: string
           user_id?: string
         }
         Relationships: []

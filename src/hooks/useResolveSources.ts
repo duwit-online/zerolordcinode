@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { PlayerSource } from "@/components/watch/CinodePlayer";
-import { DEFAULT_PLAYBACK_ORDER, normalizePlaybackOrder } from "@/lib/playbackSources";
+import { getStreamUrl } from "@/lib/tmdb";
 
 interface ResolveArgs {
-  tmdbId: number;
+  tmdbId: string | number;
   type: "movie" | "tv";
   season?: number;
   episode?: number;
@@ -12,34 +12,9 @@ interface ResolveArgs {
   year?: number;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-
-const normalizeTitle = (value: string) => value.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim();
-const similarTitle = (a?: string, b?: string) => {
-  if (!a || !b) return true;
-  const left = normalizeTitle(a);
-  const right = normalizeTitle(b);
-  if (!left || !right || left === right || left.includes(right) || right.includes(left)) return true;
-  const leftTokens = new Set(left.split(" ").filter((token) => token.length > 2));
-  const rightTokens = new Set(right.split(" ").filter((token) => token.length > 2));
-  if (!leftTokens.size || !rightTokens.size) return false;
-  const shared = [...leftTokens].filter((token) => rightTokens.has(token)).length;
-  return shared / Math.max(leftTokens.size, rightTokens.size) >= 0.5;
-};
-
-function embedUrl(key: string, a: ResolveArgs): PlayerSource | null {
-  const isTV = a.type === "tv";
-  const s = a.season || 1, e = a.episode || 1;
-  switch (key) {
-    case "2embed": return { kind: "iframe", label: "2Embed", url: isTV ? `https://www.2embed.cc/embedtv/${a.tmdbId}&s=${s}&e=${e}` : `https://www.2embed.cc/embed/${a.tmdbId}` };
-    case "superembed": return { kind: "iframe", label: "SuperEmbed", url: isTV ? `https://multiembed.mov/?video_id=${a.tmdbId}&tmdb=1&s=${s}&e=${e}` : `https://multiembed.mov/?video_id=${a.tmdbId}&tmdb=1` };
-    case "vidlink": return { kind: "iframe", label: "VidLink", url: isTV ? `https://vidlink.pro/tv/${a.tmdbId}/${s}/${e}` : `https://vidlink.pro/movie/${a.tmdbId}` };
-    case "smashy": return { kind: "iframe", label: "Smashy", url: isTV ? `https://embed.smashystream.com/playere.php?tmdb=${a.tmdbId}&season=${s}&episode=${e}` : `https://embed.smashystream.com/playere.php?tmdb=${a.tmdbId}` };
-    default: return null;
-  }
-}
-
+// In the Jellyfin-only architecture the "tmdbId" carried by the UI is the
+// Jellyfin item id. For TV, we resolve the episode's Jellyfin id via the
+// season endpoint before requesting the signed stream URL.
 export function useResolveSources(args: ResolveArgs) {
   const [sources, setSources] = useState<PlayerSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,58 +23,51 @@ export function useResolveSources(args: ResolveArgs) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-
-      // Get admin-configured order
-      const { data: orderRow } = await supabase.from("app_settings").select("value").eq("key", "playback_order").maybeSingle();
-      const preferredOrder = normalizePlaybackOrder((orderRow?.value as any)?.order ?? DEFAULT_PLAYBACK_ORDER);
-      const order = [...preferredOrder, ...DEFAULT_PLAYBACK_ORDER.filter((key) => !preferredOrder.includes(key))];
-
-      // Resolve jellyfin once
-      let jfDirect: PlayerSource | null = null;
-      let jfHls: PlayerSource | null = null;
-      try {
-        const params = new URLSearchParams({ tmdbId: String(args.tmdbId), type: args.type });
-        if (args.type === "tv") { params.set("season", String(args.season || 1)); params.set("episode", String(args.episode || 1)); }
-        if (args.title) params.set("title", args.title);
-        if (args.year) params.set("year", String(args.year));
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/jellyfin-proxy/resolve?${params}`, {
-          headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
-        });
-        if (res.ok) {
-          const j = await res.json().catch(() => ({}));
-          if (similarTitle(args.title, j?.title)) {
-            if (j?.directUrl) jfDirect = { kind: "mp4", label: `Jellyfin Direct${j.serverName ? ` · ${j.serverName}` : ""}`, url: j.directUrl };
-            if (j?.hlsUrl) jfHls = { kind: "hls", label: `Jellyfin HLS${j.serverName ? ` · ${j.serverName}` : ""}`, url: j.hlsUrl };
-          }
-        }
-      } catch (e) { console.warn("jellyfin resolve skipped", e); }
-
-      // Resolve override once
-      let override: PlayerSource | null = null;
-      try {
-        let q = supabase.from("movie_overrides").select("custom_url").eq("tmdb_id", args.tmdbId).eq("media_type", args.type);
-        if (args.type === "tv") { q = q.eq("season", args.season || 1).eq("episode", args.episode || 1); }
-        const { data } = await q.limit(1).maybeSingle();
-        if (data?.custom_url) {
-          const url = data.custom_url;
-          const isHls = /\.m3u8(\?|$)/i.test(url);
-          const isMp4 = /\.(mp4|mkv|webm)(\?|$)/i.test(url);
-          override = { kind: isHls ? "hls" : isMp4 ? "mp4" : "iframe", label: "Admin Override", url };
-        }
-      } catch (e) { console.warn("override fetch failed", e); }
-
       const list: PlayerSource[] = [];
-      for (const key of order) {
-        if (key === "jellyfin_direct" && jfDirect) list.push(jfDirect);
-        else if (key === "jellyfin_hls" && jfHls) list.push(jfHls);
-        else if (key === "override" && override) list.push(override);
-        else { const e = embedUrl(key, args); if (e) list.push(e); }
-      }
+      try {
+        let itemId: string | number = args.tmdbId;
 
-      if (!cancelled) { setSources(list); setLoading(false); }
+        if (args.type === "tv") {
+          // fetch season episodes to translate (season,episode) -> jellyfin episode id
+          const seasonRes = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/jellyfin-api/seasons/${args.tmdbId}/${args.season || 1}`,
+            { headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}` } },
+          );
+          const seasonJson = await seasonRes.json().catch(() => ({ episodes: [] }));
+          const ep = (seasonJson.episodes || []).find((e: any) => e.episode_number === (args.episode || 1));
+          if (ep?.id) itemId = ep.id;
+        }
+
+        // 1) Admin URL override (if any)
+        try {
+          const { data } = await supabase
+            .from("movie_overrides")
+            .select("custom_url")
+            .eq("tmdb_id", String(args.tmdbId) as any)
+            .eq("media_type", args.type)
+            .limit(1)
+            .maybeSingle();
+          if (data?.custom_url) {
+            const url = data.custom_url as string;
+            const isHls = /\.m3u8(\?|$)/i.test(url);
+            const isMp4 = /\.(mp4|mkv|webm)(\?|$)/i.test(url);
+            list.push({ kind: isHls ? "hls" : isMp4 ? "mp4" : "iframe", label: "Admin Override", url });
+          }
+        } catch { /* overrides table optional */ }
+
+        // 2) Jellyfin signed HLS
+        try {
+          const stream = await getStreamUrl(itemId);
+          if (stream?.url) list.push({ kind: "hls", label: "Jellyfin", url: stream.url });
+        } catch (e) {
+          console.warn("jellyfin stream unavailable", e);
+        }
+      } finally {
+        if (!cancelled) { setSources(list); setLoading(false); }
+      }
     })();
     return () => { cancelled = true; };
-  }, [args.tmdbId, args.type, args.season, args.episode, args.title, args.year]);
+  }, [args.tmdbId, args.type, args.season, args.episode]);
 
   return { sources, loading };
 }

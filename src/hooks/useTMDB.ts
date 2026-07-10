@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import * as tmdb from "@/lib/tmdb";
 
+type Id = string | number;
+
 export const useTrending = (timeWindow: "day" | "week" = "week") =>
   useQuery({ queryKey: ["trending", timeWindow], queryFn: () => tmdb.getTrending(timeWindow) });
 
@@ -25,35 +27,27 @@ export const useTopRatedTV = () =>
 export const useAiringToday = () =>
   useQuery({ queryKey: ["airing-today"], queryFn: () => tmdb.getAiringTodayTV() });
 
-export const useMoviesByGenre = (genreId: number, page = 1) =>
+export const useMoviesByGenre = (genreId: Id, page = 1) =>
   useQuery({
     queryKey: ["movies-genre", genreId, page],
     queryFn: () => tmdb.getMoviesByGenre(genreId, page),
     enabled: !!genreId,
   });
 
-export const useTVByGenre = (genreId: number, page = 1) =>
+export const useTVByGenre = (genreId: Id, page = 1) =>
   useQuery({
     queryKey: ["tv-genre", genreId, page],
     queryFn: () => tmdb.getTVByGenre(genreId, page),
     enabled: !!genreId,
   });
 
-export const useMovieDetail = (id: number) =>
-  useQuery({
-    queryKey: ["movie-detail", id],
-    queryFn: () => tmdb.getMovieDetail(id),
-    enabled: !!id,
-  });
+export const useMovieDetail = (id: Id) =>
+  useQuery({ queryKey: ["movie-detail", id], queryFn: () => tmdb.getMovieDetail(id), enabled: !!id });
 
-export const useTVDetail = (id: number) =>
-  useQuery({
-    queryKey: ["tv-detail", id],
-    queryFn: () => tmdb.getTVDetail(id),
-    enabled: !!id,
-  });
+export const useTVDetail = (id: Id) =>
+  useQuery({ queryKey: ["tv-detail", id], queryFn: () => tmdb.getTVDetail(id), enabled: !!id });
 
-export const useSeasonDetail = (tvId: number, season: number) =>
+export const useSeasonDetail = (tvId: Id, season: number) =>
   useQuery({
     queryKey: ["season-detail", tvId, season],
     queryFn: () => tmdb.getSeasonDetail(tvId, season),
@@ -67,7 +61,7 @@ export const useSearch = (query: string, page = 1) =>
     enabled: query.length > 1,
   });
 
-export const useSimilar = (mediaType: "movie" | "tv", id: number) =>
+export const useSimilar = (mediaType: "movie" | "tv", id: Id) =>
   useQuery({
     queryKey: ["similar", mediaType, id],
     queryFn: () => (mediaType === "movie" ? tmdb.getSimilarMovies(id) : tmdb.getSimilarTV(id)),
@@ -80,7 +74,7 @@ export const useMovieGenres = () =>
 export const useTVGenres = () =>
   useQuery({ queryKey: ["tv-genres"], queryFn: tmdb.getTVGenres });
 
-export const useCredits = (mediaType: "movie" | "tv", id: number) =>
+export const useCredits = (mediaType: "movie" | "tv", id: Id) =>
   useQuery({
     queryKey: ["credits", mediaType, id],
     queryFn: () => tmdb.getCredits(mediaType, id),

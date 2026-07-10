@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ProgressKey {
-  tmdbId: number;
+  tmdbId: string | number;
   mediaType: "movie" | "tv";
   season?: number | null;
   episode?: number | null;
@@ -18,7 +18,7 @@ export const useResumeProgress = (key: ProgressKey | null) => {
     queryFn: async () => {
       if (!user || !key) return null;
       let q = supabase.from("user_progress").select("*")
-        .eq("user_id", user.id).eq("media_type", key.mediaType).eq("tmdb_id", key.tmdbId);
+        .eq("user_id", user.id).eq("media_type", key.mediaType).eq("tmdb_id", String(key.tmdbId));
       if (key.mediaType === "tv") {
         q = q.eq("season", key.season ?? 1).eq("episode", key.episode ?? 1);
       } else {
@@ -45,7 +45,7 @@ export const useSaveProgress = (key: ProgressKey | null, title?: string, posterP
     const isTV = key.mediaType === "tv";
     const payload: any = {
       user_id: user.id,
-      tmdb_id: key.tmdbId,
+      tmdb_id: String(key.tmdbId),
       media_type: key.mediaType,
       season: isTV ? (key.season ?? 1) : null,
       episode: isTV ? (key.episode ?? 1) : null,

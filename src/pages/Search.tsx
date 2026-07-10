@@ -9,7 +9,7 @@ const Search = () => {
   const location = useLocation();
   const urlQuery = new URLSearchParams(location.search).get("q") || "";
   const [query, setQuery] = useState(urlQuery);
-  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<string | number | null>(null);
   const { data: searchResults, isLoading } = useSearch(query);
   const { data: genres } = useMovieGenres();
   const { data: genreMovies } = useMoviesByGenre(selectedGenre || 0);

@@ -6,30 +6,30 @@ import ContinueWatchingRow from "@/components/ContinueWatchingRow";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const GENRE_ROWS = [
-  { id: 28, title: "💥 Action", emoji: "💥" },
-  { id: 35, title: "😂 Comedy", emoji: "😂" },
-  { id: 27, title: "👻 Horror", emoji: "👻" },
-  { id: 10749, title: "💕 Romance", emoji: "💕" },
-  { id: 878, title: "🚀 Sci-Fi", emoji: "🚀" },
-  { id: 53, title: "🔪 Thriller", emoji: "🔪" },
-  { id: 16, title: "🎨 Animation", emoji: "🎨" },
-  { id: 99, title: "📖 Documentary", emoji: "📖" },
+  { id: "Action", title: "💥 Action" },
+  { id: "Comedy", title: "😂 Comedy" },
+  { id: "Horror", title: "👻 Horror" },
+  { id: "Romance", title: "💕 Romance" },
+  { id: "Science Fiction", title: "🚀 Sci-Fi" },
+  { id: "Thriller", title: "🔪 Thriller" },
+  { id: "Animation", title: "🎨 Animation" },
+  { id: "Documentary", title: "📖 Documentary" },
 ];
 
 const TV_GENRE_ROWS = [
-  { id: 10759, title: "🗡️ Action TV" },
-  { id: 35, title: "😄 Comedy Series" },
-  { id: 18, title: "🎭 Drama Series" },
-  { id: 10765, title: "🪐 Fantasy & Sci‑Fi TV" },
+  { id: "Action", title: "🗡️ Action TV" },
+  { id: "Comedy", title: "😄 Comedy Series" },
+  { id: "Drama", title: "🎭 Drama Series" },
+  { id: "Science Fiction", title: "🪐 Sci-Fi Series" },
 ];
 
-const GenreRow = ({ genreId, title }: { genreId: number; title: string }) => {
+const GenreRow = ({ genreId, title }: { genreId: string; title: string }) => {
   const { data } = useMoviesByGenre(genreId);
   if (!data?.results?.length) return null;
   return <TMDBRow title={title} items={data.results} variant="default" />;
 };
 
-const TVGenreRow = ({ genreId, title }: { genreId: number; title: string }) => {
+const TVGenreRow = ({ genreId, title }: { genreId: string; title: string }) => {
   const { data } = useTVByGenre(genreId);
   if (!data?.results?.length) return null;
   return <TMDBRow title={title} items={data.results} variant="default" />;

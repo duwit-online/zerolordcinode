@@ -13,7 +13,7 @@ const Watch = () => {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const mediaType = (type === "tv" ? "tv" : "movie") as "movie" | "tv";
-  const tmdbId = Number(id);
+  const tmdbId = (id ?? "") as string;
   const season = Number(params.get("season") || 1);
   const episode = Number(params.get("episode") || 1);
   const offlineMode = params.get("offline") === "1";
@@ -25,9 +25,9 @@ const Watch = () => {
     (async () => { setOfflineSrc(await getOfflineSrc(makeId(tmdbId, mediaType, season, episode))); })();
   }, [offlineMode, tmdbId, mediaType, season, episode]);
 
-  const { data: movie } = useMovieDetail(mediaType === "movie" ? tmdbId : 0);
-  const { data: tv } = useTVDetail(mediaType === "tv" ? tmdbId : 0);
-  const { data: seasonData } = useSeasonDetail(mediaType === "tv" ? tmdbId : 0, season);
+  const { data: movie } = useMovieDetail(mediaType === "movie" ? tmdbId : "");
+  const { data: tv } = useTVDetail(mediaType === "tv" ? tmdbId : "");
+  const { data: seasonData } = useSeasonDetail(mediaType === "tv" ? tmdbId : "", season);
   const detail = mediaType === "movie" ? movie : tv;
 
   const resolveTitle = detail ? getTitle(detail as any) : undefined;
