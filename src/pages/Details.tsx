@@ -25,7 +25,7 @@ const Details = () => {
   const location = useLocation();
   const { user } = useAuth();
   const mediaType = type === "tv" ? "tv" : "movie";
-  const tmdbId = Number(id);
+  const tmdbId = (id ?? "") as string;
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const initialSeason = Number(searchParams.get("season") || 1);
   const initialEpisode = Number(searchParams.get("episode") || 1);
@@ -45,11 +45,11 @@ const Details = () => {
     if (location.search !== next) navigate({ pathname: location.pathname, search: next }, { replace: true });
   }, [mediaType, season, episode, location.pathname, location.search, navigate]);
 
-  const { data: movieDetail, isLoading: movieLoading } = useMovieDetail(tmdbId);
-  const { data: tvDetail, isLoading: tvLoading } = useTVDetail(tmdbId);
+  const { data: movieDetail, isLoading: movieLoading } = useMovieDetail(mediaType === "movie" ? tmdbId : "");
+  const { data: tvDetail, isLoading: tvLoading } = useTVDetail(mediaType === "tv" ? tmdbId : "");
   const detail = mediaType === "movie" ? movieDetail : tvDetail;
   const isLoading = mediaType === "movie" ? movieLoading : tvLoading;
-  const { data: seasonData } = useSeasonDetail(mediaType === "tv" ? tmdbId : 0, season);
+  const { data: seasonData } = useSeasonDetail(mediaType === "tv" ? tmdbId : "", season);
   const { data: similar } = useSimilar(mediaType, tmdbId);
   const { data: credits } = useCredits(mediaType, tmdbId);
   const { data: trending } = useTrending("week");
