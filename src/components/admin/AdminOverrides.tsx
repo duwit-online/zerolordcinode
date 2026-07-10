@@ -5,12 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 interface Override {
-  id: string; tmdb_id: number; media_type: string;
+  id: string; tmdb_id: string; media_type: string;
   custom_url: string | null; custom_title: string | null;
   season: number | null; episode: number | null;
 }
 
-const blank: Partial<Override> = { tmdb_id: 0, media_type: "movie", custom_url: "", custom_title: "" };
+const blank: Partial<Override> = { tmdb_id: "", media_type: "movie", custom_url: "", custom_title: "" };
 
 const AdminOverrides = () => {
   const [rows, setRows] = useState<Override[]>([]);
@@ -63,7 +63,7 @@ const AdminOverrides = () => {
       {editing && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
-            <input type="number" className="rounded-xl bg-background border border-border px-3 py-2 text-sm" placeholder="TMDB ID" value={editing.tmdb_id || ""} onChange={(e) => setEditing({ ...editing, tmdb_id: Number(e.target.value) })} />
+            <input type="text" className="rounded-xl bg-background border border-border px-3 py-2 text-sm" placeholder="Jellyfin Item ID" value={editing.tmdb_id || ""} onChange={(e) => setEditing({ ...editing, tmdb_id: e.target.value })} />
             <select className="rounded-xl bg-background border border-border px-3 py-2 text-sm" value={editing.media_type || "movie"} onChange={(e) => setEditing({ ...editing, media_type: e.target.value })}>
               <option value="movie">Movie</option>
               <option value="tv">TV</option>

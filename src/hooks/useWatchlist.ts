@@ -33,7 +33,7 @@ export const useToggleWatchlist = () => {
     }) => {
       if (!user) throw new Error("Not authenticated");
       if (isInList) {
-        await supabase.from("watchlist").delete().eq("user_id", user.id).eq("tmdb_id", tmdbId).eq("media_type", mediaType);
+        await supabase.from("watchlist").delete().eq("user_id", user.id).eq("tmdb_id", String(tmdbId)).eq("media_type", mediaType);
       } else {
         await supabase.from("watchlist").insert({ user_id: user.id, tmdb_id: tmdbId, media_type: mediaType, title, poster_path: posterPath } as any);
       }

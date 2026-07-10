@@ -234,7 +234,7 @@ const Details = () => {
 };
 
 interface ActionsProps {
-  mediaType: "movie" | "tv"; tmdbId: number; season: number; episode: number;
+  mediaType: "movie" | "tv"; tmdbId: string | number; season: number; episode: number;
   title: string; posterPath?: string; isInWatchlist: boolean;
   onToggleWatchlist: () => void; onPlay: () => void;
 }

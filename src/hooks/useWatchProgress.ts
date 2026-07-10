@@ -18,7 +18,7 @@ export const useResumeProgress = (key: ProgressKey | null) => {
     queryFn: async () => {
       if (!user || !key) return null;
       let q = supabase.from("user_progress").select("*")
-        .eq("user_id", user.id).eq("media_type", key.mediaType).eq("tmdb_id", key.tmdbId);
+        .eq("user_id", user.id).eq("media_type", key.mediaType).eq("tmdb_id", String(key.tmdbId));
       if (key.mediaType === "tv") {
         q = q.eq("season", key.season ?? 1).eq("episode", key.episode ?? 1);
       } else {
