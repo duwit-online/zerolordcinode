@@ -45,7 +45,7 @@ export const useSaveProgress = (key: ProgressKey | null, title?: string, posterP
     const isTV = key.mediaType === "tv";
     const payload: any = {
       user_id: user.id,
-      tmdb_id: key.tmdbId,
+      tmdb_id: String(key.tmdbId),
       media_type: key.mediaType,
       season: isTV ? (key.season ?? 1) : null,
       episode: isTV ? (key.episode ?? 1) : null,
