@@ -215,6 +215,36 @@ export type Database = {
         }
         Relationships: []
       }
+      jellyfin_user_links: {
+        Row: {
+          access_token_encrypted: string
+          created_at: string
+          id: string
+          jellyfin_user_id: string
+          jellyfin_username: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted: string
+          created_at?: string
+          id?: string
+          jellyfin_user_id: string
+          jellyfin_username: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string
+          created_at?: string
+          id?: string
+          jellyfin_user_id?: string
+          jellyfin_username?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       media_sources: {
         Row: {
           created_at: string
